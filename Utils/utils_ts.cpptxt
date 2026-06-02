@@ -1,0 +1,107 @@
+#include "utils_ts.h"
+#include "utils_http.h"
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+//función de watchdog y envio a miTS con miTS petición HTTP. La task se arranca desde main.cpp
+#define POLLING_TIMEOUT_MS (10 * 60 * 1000) // 10 minutos
+// Guardar el Handle de la tarea (generalmente una variable global o de clase)
+TaskHandle_t web_task_handle = NULL;
+char * url = "http://example.com/upload"; // URL de ejemplo
+char * uploadData = "{\"sensor_id\":7001,\"value\":42}"; // Datos de ejemplo
+
+// ----------------------------------------------------
+// A. Tarea Principal (Web Polling y Upload). Esta tarea se despierta cada 10 minutos o por un evento urgente que usa ulTaskNotifyTake
+// ----------------------------------------------------
+void web_connection_task(void *pvParameters) {
+    // 1. Almacenar el handle de esta tarea (Self-registration)
+    web_task_handle = xTaskGetCurrentTaskHandle();
+    TickType_t ten_minutes_ticks = pdMS_TO_TICKS(POLLING_TIMEOUT_MS);
+
+    while (1) {
+        ESP_LOGI("WEB_TASK", "Esperando 10 minutos o un evento...");
+        
+        // Espera bloqueada: 10 minutos O un evento de notificación.
+        uint32_t reason = ulTaskNotifyTake(
+            pdTRUE,               // Limpiar la notificación después de recibirla
+            ten_minutes_ticks     // Timeout
+        );
+
+        if (reason > 0) {
+            // Despertado por evento (Notificación)
+            ESP_LOGW("WEB_TASK", "¡ALARMA! Despertado por evento urgente.");
+            mits_task(url, uploadData, true); // Llamar a la función de subida inmediata
+        } else {
+            // Despertado por timeout (Tiempo expirado)
+            ESP_LOGI("WEB_TASK", "Tiempo de polling expirado (10 min).");
+              mits_task(url, uploadData, false); // Llamar a la función de subida periódica
+        }
+
+        
+    }
+}
+
+//notificación de la tarea web desde otra parte del código.
+//Con esto nos aseguramos que la tarea web se despierte inmediatamente para subir datos críticos.
+void notify_web_task(void *pvParameters) {
+    // B. Tarea Externa (La que genera la data crítica)
+    // ----------------------------------------------------
+    // ... Código que genera datos críticos ...
+    bool critical_data_is_ready = true; // Ejemplo: condición que indica que hay datos críticos listos
+    if (critical_data_is_ready && web_task_handle != NULL) {
+        // Enviar la notificación a la tarea web para que se despierte.
+        // xTaskNotifyGive es seguro para usar en ISRs o tareas.
+        xTaskNotifyGive(web_task_handle);
+        ESP_LOGW("GENERATOR", "Notificación enviada para subida urgente.");
+    }
+    // ...
+}
+
+
+
+void mits_task(char * url, char * uploadData, bool is_urgent) {
+char response[MAX_HTTP_OUTPUT_BUFFER];
+
+// --- 1. Test GET ---
+const char *get_url = "http://worldtimeapi.org/api/ip";
+ESP_LOGI("MAIN_HTTP", "Realizando GET a: %s", get_url);
+
+if (http_perform_get(get_url, response, sizeof(response)) == ESP_OK) {
+    ESP_LOGI("MAIN_HTTP", "GET exitoso. Respuesta recibida (parte): %s", response);
+} else {
+    ESP_LOGE("MAIN_HTTP", "Fallo la petición GET.");
+    ESP_LOGW("MAIN_HTTP", "Error: %s", response);
+}
+
+vTaskDelay(pdMS_TO_TICKS(5000));
+
+// --- 2. Test POST (ejemplo de JSON) ---
+const char *post_url = "http://httpbin.org/post";
+const char *payload = "{\"id\":7001, \"data\": 12.5}";
+
+ESP_LOGI("MAIN_HTTP", "Realizando POST a: %s con payload: %s", post_url, payload);
+
+if (http_perform_post(post_url, payload, response, sizeof(response)) == ESP_OK) {
+    ESP_LOGI("MAIN_HTTP", "POST exitoso. El servidor respondió (parte): %s", response);
+} else {
+    ESP_LOGE("MAIN_HTTP", "Fallo la petición POST.");
+    // Imprimimos el buffer de todas formas, porque el servidor seguramente envió texto.
+    ESP_LOGW("MAIN_HTTP", "Error: %s", response);
+}
+//Probemos con google:
+// --- 1. Test GET (Usando google.com para probar conectividad real) ---
+// Google suele responder con un 301 o 200, pero rara vez cierra la conexión.
+const char *get_url2 = "http://www.google.com"; 
+ESP_LOGI("MAIN_HTTP", "Realizando GET a: %s", get_url);
+
+if (http_perform_get(get_url2, response, sizeof(response)) == ESP_OK) {
+    ESP_LOGI("MAIN_HTTP", "GET exitoso. Google respondió.");
+    // Nota: Google devuelve mucho HTML, así que se cortará, pero sirve para testear.
+} else {
+    ESP_LOGE("MAIN_HTTP", "Fallo la petición GET a Google.");
+    ESP_LOGW("MAIN_HTTP", "Error: %s", response);
+}
+// La tarea puede suspenderse o eliminarse si solo se ejecuta una vez
+vTaskDelete(NULL);
+}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Control ESP32-S3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .btn { display: inline-block; padding: 15px 30px; margin: 10px; font-size: 18px; color: white; text-decoration: none; border-radius: 5px; cursor: pointer; border: none; }
+        .on { background-color: #28a745; }
+        .off { background-color: #dc3545; }
+        .submit { background-color: #007bff; }
+        .input { padding: 10px; font-size: 16px; width: 80%; max-width: 480px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        #console { 
+            margin: 20px auto; max-width: 600px; background-color: #1e1e1e; color: #00ff00; 
+            padding: 15px; border-radius: 5px; text-align: left; 
+            font-family: 'Courier New', monospace; height: 180px; overflow-y: auto; 
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3); 
+        }
+        .status { margin: 10px 0; font-weight: bold; }
+        .online { color: #28a745; }
+        .offline { color: #dc3545; }
+        .log-entry {white-space: pre-wrap; /* Esto hace que el \n funcione en cualquier div */
+                font-family: monospace; 
+                border-bottom: 1px solid #333; 
+                padding: 2px 0; font-size: 0.9em;
+        }
+
+        .timestamp { color: #888; margin-right: 8px; }
+    </style>
+</head>
+<body>
+
+    <h1>Panel de Control ESP32-S3</h1>
+    <div class="status">Estado: <span id="ws-status" class="offline">Desconectado</span></div>
+
+    <button onclick="enviarComando('/cmd?mode=std&data=on')" class="btn on">Encender</button>
+    <button onclick="enviarComando('/cmd?mode=std&data=off')" class="btn off">Apagar</button>
+    <div class="log-controls">
+        <a href="/download" target="_blank"><button>Log Actual</button></a>
+        <a href="/download?n=1" target="_blank"><button>Log -1</button></a>
+        <a href="/download?n=2" target="_blank"><button>Log -2</button></a>
+        <a href="/download?n=3" target="_blank"><button>Log -3</button></a>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <input id="cmdInput" class="input" type="text" placeholder="Ej: SetSSID=missid SetWifiPass=mipass">
+        <button onclick="procesarInput('cmdInput', '/cmd?')" class="btn submit">Submit</button>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <input id="cmdInputx" class="input" type="text" placeholder="Ej: ota,server=http://...">
+        <button onclick="procesarInput('cmdInputx', '/cmdx?')" class="btn submit">SubmitX</button>
+    </div>
+
+    <h3>Consola de Sistema</h3>
+    <div id="console"></div>
+
+    <button onclick="logout()" style="margin-top:20px; background:none; border:1px solid #666; color:#666; cursor:pointer; padding:5px 10px; border-radius:4px;">Cerrar Sesión</button>
+
+    <script>
+        let websocket;
+
+        function initWebSocket() {
+            const wsUri = `ws://${window.location.hostname}/ws`;
+            websocket = new WebSocket(wsUri);
+
+            websocket.onopen = () => {
+                document.getElementById('ws-status').innerText = "Conectado";
+                document.getElementById('ws-status').className = "online";
+                addLog("Conexión establecida correctamente.");
+            };
+
+            websocket.onclose = () => {
+                document.getElementById('ws-status').innerText = "Desconectado (reintentando en 5s...)";
+                document.getElementById('ws-status').className = "offline";
+                
+                // 1. Limpiamos cualquier rastro del objeto previo
+                websocket = null;
+
+                // 2. Aumentamos el tiempo de reconexión para dar respiro al ESP32
+                // Si el WiFi está reiniciando, 2 segundos es muy poco tiempo.
+                setTimeout(initWebSocket, 10000); 
+            };
+            websocket.onmessage = (event) => {
+                addLog(event.data);
+            };
+        }
+
+        function addLog(msg) {
+            //viejo .log-entry: .log-entry { border-bottom: 1px solid #333; padding: 2px 0; font-size: 0.9em; }
+            const consoleDiv = document.getElementById('console');
+            const now = new Date().toLocaleTimeString();
+            consoleDiv.innerHTML += `<div class="log-entry"><span class="timestamp">[${now}]</span>${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Ahora enviamos el texto directamente por el WebSocket
+        function enviarComando(texto) {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                addLog("Enviando vía WS: " + texto);
+                websocket.send(texto); 
+            } else {
+                addLog("Error: WebSocket no conectado.");
+            }
+        }
+
+        // Manejador para los cuadros de texto
+        function procesarInput(inputId) {
+            const el = document.getElementById(inputId);
+            let val = el.value.trim();
+            if (val) {
+                // Si es el input de CMDX, le ponemos un prefijo para que el ESP32 lo reconozca
+                if (inputId === 'cmdInputx') {
+                    enviarComando("X:" + val); // Prefijo X: para formato complejo
+                } else {
+                    enviarComando(val); // Formato simple
+                }
+                el.value = ""; 
+            }
+}
+
+        // Actualiza también el listener del 'Enter'
+        document.querySelectorAll('.input').forEach(input => {
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    procesarInput(e.target.id);
+                }
+            });
+        });
+
+
+        function logout() {
+            if (confirm("¿Cerrar sesión?")) {
+                websocket.close();
+                window.location.href = "/logout";
+            }
+        }
+
+        window.onload = initWebSocket;
+    </script>
+</body>
+</html>

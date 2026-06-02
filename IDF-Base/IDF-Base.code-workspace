@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"name": "IDF-Base",
+			"path": "."
+		},
+		{
+			"name": "Utils",
+			"path": "../Utils"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"array": "cpp",
+			"string": "cpp",
+			"string_view": "cpp",
+			"span": "cpp",
+			"cstdlib": "cpp"
+		}
+	}
+}

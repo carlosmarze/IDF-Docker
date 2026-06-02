@@ -1,0 +1,8 @@
+{
+  "last_used": 0,
+  "networks": [
+    {"ssid": "ESPSSID", "pass": "esppassword"},
+    {"ssid": "Departamento5", "pass": "el departamento es azul"},
+    {"ssid": "Smartphone_AP", "pass": "ap_pass"}
+  ]
+}

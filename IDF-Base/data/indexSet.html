@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Control ESP32-S3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .btn { display: inline-block; padding: 15px 30px; margin: 10px; font-size: 18px; color: white; text-decoration: none; border-radius: 5px; cursor: pointer; border: none; }
+        .submit { background-color: #007bff; }
+        .input { padding: 10px; font-size: 16px; width: 80%; max-width: 480px; border: 1px solid #ccc; border-radius: 4px; }
+
+        #console { 
+            margin: 20px auto; max-width: 600px; background-color: #1e1e1e; color: #00ff00; 
+            padding: 15px; border-radius: 5px; text-align: left; 
+            font-family: 'Courier New', monospace; height: 180px; overflow-y: auto; 
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3); 
+        }
+        .status { margin: 10px 0; font-weight: bold; }
+        .online { color: #28a745; }
+        .offline { color: #dc3545; }
+        .log-entry { white-space: pre-wrap; font-family: monospace; border-bottom: 1px solid #333; padding: 2px 0; font-size: 0.9em; }
+        .timestamp { color: #888; margin-right: 8px; }
+    </style>
+</head>
+<body>
+
+    <h1>Panel de Control ESP32-S3</h1>
+    <div class="status">Estado: <span id="ws-status" class="offline">Desconectado</span></div>
+
+    <div class="log-controls">
+        <a href="/download" target="_blank"><button>Log Actual</button></a>
+        <a href="/download?n=1" target="_blank"><button>Log -1</button></a>
+        <a href="/download?n=2" target="_blank"><button>Log -2</button></a>
+        <a href="/download?n=3" target="_blank"><button>Log -3</button></a>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <a href="/files.html" target="_blank"><button class="btn submit">Files</button></a>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <input id="cmdInput" type="text"
+               list="cmdHistoryList"
+               autocomplete="off"
+               autocorrect="off"
+               autocapitalize="off"
+               spellcheck="false"
+               placeholder="Comando..."
+               class="input">
+
+        <datalist id="cmdHistoryList"></datalist>
+
+        <button onclick="procesarInput('cmdInput')" class="btn submit">Submit</button>
+    </div>
+
+    <h3>Consola de Sistema</h3>
+    <div id="console"></div>
+
+    <button onclick="logout()" style="margin-top:20px; background:none; border:1px solid #666; color:#666; cursor:pointer; padding:5px 10px; border-radius:4px;">Cerrar Sesión</button>
+
+    <script>
+        let websocket;
+
+        function initWebSocket() {
+            const wsUri = `ws://${window.location.hostname}/ws`;
+            websocket = new WebSocket(wsUri);
+
+            websocket.onopen = () => {
+                document.getElementById('ws-status').innerText = "Conectado";
+                document.getElementById('ws-status').className = "online";
+                addLog("Conexión establecida correctamente.");
+            };
+
+            websocket.onclose = () => {
+                document.getElementById('ws-status').innerText = "Desconectado (reintentando en 10s...)";
+                document.getElementById('ws-status').className = "offline";
+                websocket = null;
+                setTimeout(initWebSocket, 10000);
+            };
+
+            websocket.onmessage = (event) => {
+                addLog(event.data);
+            };
+        }
+
+        // ============================================================
+        // HISTORIAL + DATALIST
+        // ============================================================
+        let history = JSON.parse(localStorage.getItem("cmdHistory") || "[]");
+        let historyIndex = history.length;
+
+        function updateDatalist() {
+            const dl = document.getElementById("cmdHistoryList");
+            dl.innerHTML = "";
+
+            const last = history.slice(-20).reverse();
+            last.forEach(cmd => {
+                const opt = document.createElement("option");
+                opt.value = cmd;
+                dl.appendChild(opt);
+            });
+        }
+
+        function saveToHistory(cmd) {
+            if (!cmd) return;
+
+            if (history.length === 0 || history[history.length - 1] !== cmd) {
+                history.push(cmd);
+                localStorage.setItem("cmdHistory", JSON.stringify(history));
+            }
+
+            historyIndex = history.length;
+            updateDatalist();
+        }
+
+        document.getElementById("cmdInput").addEventListener("keydown", function(e) {
+            if (e.key === "ArrowUp") {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    this.value = history[historyIndex];
+                }
+                e.preventDefault();
+            }
+            else if (e.key === "ArrowDown") {
+                if (historyIndex < history.length - 1) {
+                    historyIndex++;
+                    this.value = history[historyIndex];
+                } else {
+                    historyIndex = history.length;
+                    this.value = "";
+                }
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener("load", updateDatalist);
+
+        // ============================================================
+        // CONSOLA + ENVÍO
+        // ============================================================
+        function addLog(msg) {
+            const consoleDiv = document.getElementById('console');
+            const now = new Date().toLocaleTimeString();
+            consoleDiv.innerHTML += `<div class="log-entry"><span class="timestamp">[${now}]</span>${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function enviarComando(texto) {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                addLog("Enviando vía WS: " + texto);
+                websocket.send(texto);
+            } else {
+                addLog("Error: WebSocket no conectado.");
+            }
+        }
+
+        function procesarInput(inputId) {
+            const el = document.getElementById(inputId);
+            let val = el.value.trim();
+            if (val) {
+                enviarComando(val);
+                saveToHistory(val);
+                el.value = "";
+            }
+        }
+
+        function logout() {
+            if (confirm("¿Cerrar sesión?")) {
+                websocket.close();
+                window.location.href = "/logout";
+            }
+        }
+
+        // ============================================================
+        // INICIAR WS
+        // ============================================================
+        window.onload = initWebSocket;
+    </script>
+</body>
+</html>

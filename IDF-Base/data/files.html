@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explorador de Archivos</title>
+
+<style>
+body { font-family: sans-serif; margin: 20px; background: #f4f4f9; color: #333; }
+table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+th, td { padding: 12px; border-bottom: 1px solid #ddd; }
+th { background: #007bff; color: white; }
+tr:hover { background: #f1f1f1; }
+.btn { padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 14px; }
+.btn-view { color: #007bff; }
+.btn-download { color: #28a745; font-weight: bold; }
+.btn-delete { color: #dc3545; font-weight: bold; }
+.path { margin-bottom: 15px; font-size: 1.1em; }
+</style>
+
+</head>
+<body>
+
+<h2>📂 Explorador de Archivos</h2>
+<div class="path">Directorio actual: <span id="currentPath">/</span></div>
+
+<table>
+<thead>
+<tr>
+<th>Nombre</th>
+<th>Tamaño</th>
+<th>Fecha</th>
+<th>Acciones</th>
+</tr>
+</thead>
+<tbody id="fileTable"></tbody>
+</table>
+
+<script>
+// Directorio mostrado en UI (solo visual)
+let currentDir = "/";
+
+// /ls NO recibe parámetros
+function loadFiles() {
+    fetch("/ls")
+        .then(r => r.json())
+        .then(files => renderTable(files))
+        .catch(err => console.error("Error cargando /ls:", err));
+}
+
+function renderTable(files) {
+    const tbody = document.getElementById("fileTable");
+    tbody.innerHTML = "";
+    document.getElementById("currentPath").innerText = currentDir;
+
+    files.forEach(f => {
+        const tr = document.createElement("tr");
+        const date = new Date(f.mtime * 1000).toLocaleString();
+
+        // El backend unificado espera SOLO el nombre del archivo
+        const fileName = f.name;
+
+        tr.innerHTML = `
+            <td><strong>${fileName}</strong></td>
+            <td>${f.size >= 1024 ? (f.size/1024).toFixed(1) + " KB" : f.size + " B"}</td>
+            <td>${date}</td>
+            <td>
+                <a class="btn btn-view" href="/more?file=${fileName}">👁️</a>
+                <a class="btn btn-download" href="/download?file=${fileName}">⬇️</a>
+                <a class="btn btn-delete" href="#" onclick="deleteFile('${fileName}')">🗑️</a>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+function deleteFile(fileName) {
+    if (!confirm("¿Seguro que deseas borrar " + fileName + "?"))
+        return;
+
+    fetch("/rm?file=" + fileName)
+        .then(() => loadFiles());
+}
+
+window.onload = loadFiles;
+</script>
+
+</body>
+</html>

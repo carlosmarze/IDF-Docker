@@ -1,0 +1,31 @@
+SENSORID=7001
+fconfig="/config.txt"
+fstatus="/status.txt"
+miTSurl="http://carze.pythonanywhere.com"
+miTSPort=80
+WRITEKE="WR4QL85BR9KIBP6V"
+READKEY="REZAQ4BH81OQP9PZ"
+MICANALT="Esquema1"
+
+upPag="/update";
+# RKey='REzaQ4BH81Oqp9PZ'
+#   url = 'http://carze.pythonanywhere.com'
+#   uri = '/channels/Esquema1/feeds/0.json?'
+# buscar último reg:  MiCanal = "/channels/";
+# buscar determinado registro: MiCanal = "/field/";
+# field="field8" por ejemplo
+#  uri = "http://" + MiURL + MiCanal + field + "?api_key=" + MiReadKey + "&SensorID=" + String(SensID);
+#  urltotal = url + uri + '&api_key=' + RKey + '&SensorID=' + str(SensorID)
+#  getCommand: /channels/Esquema1/field?field=8&api_key=REZAQ4BH81OQP9PZ&sensorID=31
+#  getCommand: /field/Esquema1/field?field=8&api_key=REZAQ4BH81OQP9PZ&sensorID=31
+# http://carze.pythonanywhere.com/field/field8?&api_key=REZAQ4BH81OQP9PZ&SensorID=31 
+# retorna last_entry_id|7485;field8|Status:Online etc
+# http://carze.pythonanywhere.com/field/field8?&api_key=REZAQ4BH81OQP9PZ&SensorID=31&Secuencia=7484
+# retorna reg 7484
+# Para update:
+UPDATEURL="http://carze.pythonanywhere.com"
+UPDATEPORT=80
+# para weather:
+WRITEKEYWE="WR4QL85BR9KIBP6V"
+READKEYWE="REZAQ4BH81OQP9PZ"
+MICANALTWEDEF="Esquema1"

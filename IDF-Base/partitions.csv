@@ -1,0 +1,19 @@
+# ESP-IDF Partition Table
+# nvs,      data, nvs,     0x9000,   0x5000, 20KB Configuración/calibración
+# otadata,  data, ota,     0xE000,   0x2000, 8KB Bootloader guarda cuál app está activa
+# phy_init, data, phy,     0x10000,  0x1000,  4KB Calibración RF
+# factory,  app,  factory, 0x20000,  0x200000, 2MB Imagen inicial de fábrica
+# ota_0,    app,  ota_0,   ,         0x200000, 2MB
+# ota_1,    app,  ota_1,   ,         0x200000,  2MB
+# storage,  data, spiffs,  ,         0x900000,  9MB 0x81 para littleFS, 0x82 para SPIFFS
+#
+#
+# Name,   Type, SubType, Offset,   Size, Flags
+nvs,      data, nvs,     0x9000,   0x5000
+otadata,  data, ota,     0xE000,   0x2000
+phy_init, data, phy,     0x10000,  0x1000
+factory,  app,  factory, 0x20000,  0x200000
+ota_0,    app,  ota_0,   0x220000, 0x200000
+ota_1,    app,  ota_1,   0x420000, 0x200000
+storage,  data, littleFS,  0x620000, 0x900000
+

@@ -1,0 +1,15 @@
+#ifndef UTILS_TS_H
+#define UTILS_TS_H
+ #ifdef __cplusplus
+        extern "C"  {
+    #endif
+    
+
+void notify_web_task(void *pvParameters) ; //notificaque hay datos listos para subir a miTS
+void web_connection_task(void *pvParameters) ; //tarea de conexión web y subida a miTS
+void mits_task(void *pvParameters) ; //tarea de subida a miTS periódica
+
+#ifdef __cplusplus
+        }
+    #endif
+#endif // UTILS_TS_H

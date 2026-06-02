@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 S3 Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { 
+            font-family: sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+        }
+        .btn { 
+            display: inline-block; 
+            padding: 15px 30px; 
+            margin: 10px; 
+            font-size: 18px; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+        }
+        .on { background-color: #28a745; }
+        .off { background-color: #dc3545; }
+        .submit { background-color: #007bff; }
+        .input { 
+            padding: 10px; 
+            font-size: 16px; 
+            width: 80%; 
+            max-width: 480px; 
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Panel de Control ESP32-S3</h1>
+    <p>Autenticado correctamente.</p>
+
+    <!-- Botones ON/OFF -->
+    <a href="/cmd?mode=std&data=on" class="btn on">Encender</a>
+    <a href="/cmd?mode=std&data=off" class="btn off">Apagar</a>
+
+    <!-- Comandos estándar -->
+    <div style="margin-top: 20px;">
+        <input id="cmdInput" class="input" type="text"
+               placeholder="Ej: SetSSID=missid SetWifiPass=mipass">
+        <button id="cmdSubmit" class="btn submit">Submit</button>
+    </div>
+
+    <!-- Comandos extendidos -->
+    <div style="margin-top: 20px;">
+        <input id="cmdInputx" class="input" type="text"
+               placeholder="Ej: ota,server=http://server/update.bin,reboot=no,chunksize=2048">
+        <button id="cmdSubmitx" class="btn submit">SubmitX</button>
+    </div>
+
+    <script>
+        function sendCommand(prefix, text) {
+            if (!text) return;
+            const url = prefix + encodeURIComponent(text);
+            window.location.href = url;
+        }
+
+        // Botón Submit (modo estándar)
+        document.getElementById('cmdSubmit').onclick = () => {
+            const text = document.getElementById('cmdInput').value.trim();
+            sendCommand("/cmd?", text);
+        };
+
+        // Botón SubmitX (modo extendido)
+        document.getElementById('cmdSubmitx').onclick = () => {
+            const text = document.getElementById('cmdInputx').value.trim();
+            sendCommand("/cmdx?", text);
+        };
+
+        // Enter en el primer campo
+        document.getElementById('cmdInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                sendCommand("/cmd?", e.target.value.trim());
+            }
+        });
+
+        // Enter en el segundo campo
+        document.getElementById('cmdInputx').addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                sendCommand("/cmdx?", e.target.value.trim());
+            }
+        });
+    </script>
+
+</body>
+</html>
