@@ -14,7 +14,8 @@ message(STATUS "VERIFICACIÓN: Configurando EXTRA_COMPONENT_DIRS")
 # 🚨 ¡AÑADE ESTA LÍNEA DE DEBUG! 🚨 # Muestra la ruta actual del directorio fuente con idf.py build
 message(STATUS "RUTA ACTUAL: ${CMAKE_CURRENT_SOURCE_DIR}")
 #set(EXTRA_COMPONENT_DIRS "C:/Users/carlo/OneDrive/H_IDF/Proyectos/Utils")
-set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../Utils)
+#set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../Utils) #Para correr localmente sin docker, asumiendo que Utils está al mismo nivel que PruebaWifiMqtt
+set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/Utils)  #Para correr con docker
 message(STATUS "RUTA ACTUAL ExtraComponent: ${EXTRA_COMPONENT_DIRS}")
 # 2. LLAMADA PRINCIPAL DE IDF
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

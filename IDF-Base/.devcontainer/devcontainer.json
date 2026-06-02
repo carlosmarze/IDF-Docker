@@ -1,21 +1,38 @@
 {
-	"name": "ESP-IDF QEMU",
-	"build": {
-		"dockerfile": "Dockerfile"
-	},
-	"customizations": {
-		"vscode": {
-			"settings": {
-				"terminal.integrated.defaultProfile.linux": "bash",
-				"idf.espIdfPath": "/opt/esp/idf",
-				"idf.toolsPath": "/opt/esp",
-				"idf.gitPath": "/usr/bin/git"
-			},
-			"extensions": [
-				"espressif.esp-idf-extension",
-				"espressif.esp-idf-web"
-			]
-		}
-	},
-	"runArgs": ["--privileged"]
+  "name": "ESP-IDF v6.0",
+  //"image": "espressif/idf:v5.5",
+  "image": "09324eb63f99",
+  "workspaceFolder": "/workspace",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/../Utils,target=/workspace/Utils,type=bind,consistency=cached"
+  ],
+  //"postCreateCommand": ". $IDF_PATH/export.sh",
+  "postCreateCommand": "bash .devcontainer/init-idf.sh",
+  "remoteUser": "root",
+  "terminal": {
+    "integrated": {
+      "defaultProfile": {
+        "linux": "bash"
+      },
+      "profiles": {
+        "linux": {
+          "bash": {
+            "path": "bash",
+            "args": ["-i"],
+            "icon": "terminal-bash"
+          }
+        }
+      }
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "espressif.esp-idf-extension",
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  }
 }

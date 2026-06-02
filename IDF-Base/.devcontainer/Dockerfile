@@ -1,13 +1,7 @@
-ARG DOCKER_TAG=latest
-FROM espressif/idf:${DOCKER_TAG}
+# FROM espressif/idf:latest
+FROM espressif/idf:6.0
 
-ENV LC_ALL=C.UTF-8
-ENV LANG=C.UTF-8
-
-RUN apt-get update -y && apt-get install udev -y
-
-RUN echo "source /opt/esp/idf/export.sh > /dev/null 2>&1" >> ~/.bashrc
-
-ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
-
-CMD ["/bin/bash", "-c"]
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
