@@ -22,7 +22,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 # 3. DEFINICIÓN DEL PROYECTO
 # La llamada a project() inicia el escaneo del proyecto y de los componentes.
-project(IDF-Base)
+project(IDF6-Base)
 
 # Esto crea la imagen de LittleFS desde la carpeta "data"
 littlefs_create_partition_image(storage data FLASH_IN_PROJECT)

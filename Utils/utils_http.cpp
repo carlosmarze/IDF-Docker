@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "utils_logger.h"
 #include "utils_events.h"
+#include "utils_wifi.h"
 
 static const char *TAG = "HTTP_CLIENT";
 
@@ -122,7 +123,14 @@ esp_err_t http_perform_request(
    global_response_buffer = response_buffer;
    //printf("HTTP REQ content_type: %s\n", content_type);
    // Limpieza inicial: Poner el primer caracter en nulo
-    if (response_buffer != NULL && max_len > 0) {
+   if (!wifi_ready) {
+        log_msg = "No se puede realizar la petición HTTP: Wi-Fi no está listo.";
+        write_system_log(TAG, log_msg.c_str());
+        ESP_LOGE(TAG, "%s", log_msg.c_str());
+        return ESP_FAIL;
+    }
+    
+   if (response_buffer != NULL && max_len > 0) {
         response_buffer[0] = '\0'; 
     }
     esp_http_client_config_t config = {}; // Inicializa todo a 0/NULL automáticamente

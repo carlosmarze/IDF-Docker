@@ -128,66 +128,6 @@ static void mqtt_event_handler(void* handler_args,
     mqtt_event_handler_cb((esp_mqtt_event_handle_t) event_data);
 }
 
-static void mqtt_handler_OLD(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
-    std::string log_msg = "";
-    esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
-    client = event->client;
-
-    switch ((esp_mqtt_event_id_t)event_id) {
-    case MQTT_EVENT_CONNECTED: {
-        log_msg = "MQTT_EVENT_CONNECTED";
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG, "%s", log_msg.c_str());
-
-        //ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        
-        mqttconnStatus = true;
-
-        char sub_topic[MAX_TOPIC_LENGTH];
-        generar_topico_mqtt("Q", SensorID, sub_topic, sizeof(sub_topic));
-        esp_mqtt_client_subscribe(client, sub_topic, 0);
-        ESP_LOGI(TAG, "Suscrito a tópico de comandos: %s", sub_topic);
-        break;
-    }
-
-    case MQTT_EVENT_DISCONNECTED:
-        log_msg = "MQTT_EVENT_DISCONNECTED";
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG, "%s", log_msg.c_str());
-        //ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
-        mqttconnStatus = false;
-        break;
-
-    case MQTT_EVENT_DATA: {
-        log_msg = "MQTT_EVENT_DATA recibido";
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG, "%s", log_msg.c_str());
-
-        //ESP_LOGI(TAG, "MQTT_EVENT_DATA recibido");
-        char *data = (char *)malloc(event->data_len + 1);
-        if (data) {
-            memcpy(data, event->data, event->data_len);
-            data[event->data_len] = '\0';
-
-            process_commands(CMD_SRC_MQTT, data, ' ', '=', -1);
-
-            free(data);
-        }
-        break;
-    }
-
-    case MQTT_EVENT_ERROR:
-        log_msg = "MQTT_EVENT_ERROR";
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG, "%s", log_msg.c_str());
-        //ESP_LOGI(TAG, "MQTT_EVENT_ERROR");    
-        
-        break;
-
-    default:
-        break;
-    }
-}
 
 void publish_mqtt(const char* topic, const char* data, int qos, int retain) {
     if (mqttconnStatus && client) {
@@ -240,7 +180,6 @@ void mqtt_watchdog_task(void *pvParameters) {
         if (mqtt_mutex) xSemaphoreGive(mqtt_mutex);
     }
 }
-
 
 
 void mqtt_app_start(void) {
