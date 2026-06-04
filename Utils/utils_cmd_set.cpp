@@ -696,10 +696,7 @@ extern bool first_run_done; // Declaramos esta variable externa para controlar l
 
 void save_config(const char* new_cmd)
 {
-    if(first_run_done) {
-    
-        return;
-    }
+
     const char* path = CONFIG_FILE_PATH;
 
     std::ifstream infile(path);
