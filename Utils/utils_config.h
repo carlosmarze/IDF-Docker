@@ -36,7 +36,7 @@ extern std::string g_pending_pass;
 //extern bool wifi_ready;
 //extern bool g_manual_wifi_connect;
 //extern bool g_ota_en_progreso; // Variable global OTA
-void cargar_config_desde_file(CommandDispatcher* disp); // Movida aquí fuera
+bool cargar_config_desde_file(CommandDispatcher* disp); // Movida aquí fuera
 
 
 #ifdef __cplusplus

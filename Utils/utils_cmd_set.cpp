@@ -30,6 +30,25 @@ static const char *TAG = "CMDSET";
 // Asumimos que tienes estas variables globales donde vive la config actual
 //std::string g_pending_ssid = "";
 //std::string g_pending_pass = "";
+class SetSensorID : public Command {
+public:
+    const char* name() const override { return "setsensorid"; }
+    const char* usage() const override { return "<sensorid> - Configura el ID del sensor"; }
+    int minArgs() const override { return 1; }
+
+    std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
+        SensorID = std::stoi(args[0]);
+        // Construir línea de configuración
+        std::string cfg = "setsensorid=" + std::to_string(SensorID);
+        save_config(cfg.c_str());
+
+        std::string respuesta = "SensorID seteado a " + std::to_string(SensorID);
+        write_system_log("CONFIG", respuesta.c_str());
+        ESP_LOGI("CONFIG", "%s",respuesta.c_str());
+        return "OK: Sensor ID seteado.";
+    }
+};
+
 
 class SetSSID : public Command {
 public:
@@ -333,34 +352,7 @@ public:
 };
 
 
-//ver este luego
-/*
-class OtaCommand : public Command {
-public:
-    const char* name() const override { return "ota"; }
-    int minArgs() const override { return 1; }
-    int execute(cmd_source_t, const std::vector<std::string>& args) override {
-        ota_job_t job = {};
-        snprintf(job.url, sizeof(job.url), "%s", args[0].c_str());
-        job.reboot_after = true;
 
-        for (size_t i = 1; i < args.size(); ++i) {
-            const std::string &arg = args[i];
-            if (arg.rfind("sha256=", 0) == 0) {
-                snprintf(job.sha256_expected, sizeof(job.sha256_expected), "%s", arg.c_str() + 7);
-            } else if (arg == "reboot=no") {
-                job.reboot_after = false;
-            } else if (arg == "partial=yes") {
-                job.partial_download = true;
-            } else if (arg.rfind("chunk=", 0) == 0) {
-                job.chunk_size = std::stoi(arg.substr(6));
-            }
-        }
-
-        return ota_submit(&job) ? 0 : -2;
-    }
-};
-*/
 #include "esp_system.h"
 #include "esp_timer.h"
 
@@ -378,7 +370,8 @@ public:
 
         // 2. Info de WiFi
         wifi_ap_record_t ap_info;
-        char wifi_info[128] = "Desconectado";
+        static char wifi_info[128]; //La ponemos static para que no consuma stack, solo heap, no la podemos inicializar acá, por eso la linea siguiente
+        strcpy(wifi_info, "Desconectado");
         if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
             esp_netif_ip_info_t ip_info;
             esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
@@ -399,18 +392,18 @@ public:
         struct tm timeinfo;
         time(&now);
         localtime_r(&now, &timeinfo);
-        char strftime_buf[64];
+        static char strftime_buf[64]; //La ponemos static para que no consuma stack, solo heap
         strftime(strftime_buf, sizeof(strftime_buf), "%d/%m/%Y %H:%M:%S", &timeinfo);
 
         // 4. Info MQTT
-        char mqtt_info[256];
+        static char mqtt_info[256]; //La ponemos static para que no consuma stack, solo heap
         if (!(mqtt_is_initialized())) {
             snprintf(mqtt_info, sizeof(mqtt_info), "MQTT no inicializado");
         } else if (!mqttconnStatus) {
             snprintf(mqtt_info, sizeof(mqtt_info), "MQTT desconectado");
         } else {
             // Generar el tópico al que estás suscripto
-            char topic[128];
+            static char topic[128]; //La ponemos static para que no consuma stack, solo heap
             generar_topico_mqtt("Q", SensorID, topic, sizeof(topic));
 
             snprintf(mqtt_info, sizeof(mqtt_info),
@@ -418,9 +411,10 @@ public:
         }
 
         // 5. Construir respuesta final
-        char output[768];
+        static char output[768]; //La ponemos static para que no consuma stack, solo heap
         int pos = 0;
         pos += snprintf(output + pos, sizeof(output) - pos, "\n--- SYSTEM STATUS ---\n");
+        pos += snprintf(output + pos, sizeof(output) - pos, "  Version   : %s\n", version_info);
         pos += snprintf(output + pos, sizeof(output) - pos, "  Sensor    : %s\n", SensorID > 0 ? std::to_string(SensorID).c_str() : "N/A");
         pos += snprintf(output + pos, sizeof(output) - pos, "  Time      : %s\n", strftime_buf);
         pos += snprintf(output + pos, sizeof(output) - pos, "  Uptime    : %d d, %02d:%02d:%02d\n", 
@@ -581,14 +575,6 @@ public:
 
 
 
-
-/*class MoreCommand : public Command {
-public:
-    const char* name() const override { return "more"; }
-    const char* usage() const override { return "more <file> [-bytes] (max 1024b). Ej: more archivo.txt -100 muestra los ultimos 100 bytes"; }
-    int minArgs() const override { return 1; }
-*/
-
 class MoreCommand : public Command {
 public:
     const char* name() const override { return "more"; }
@@ -677,6 +663,7 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
     dispatcher.registerCommand(std::make_unique<LedCommand>());
     
     dispatcher.registerCommand(std::make_unique<OtaCommand>());
+    dispatcher.registerCommand(std::make_unique<SetSensorID>());
     dispatcher.registerCommand(std::make_unique<SetSSID>());
     dispatcher.registerCommand(std::make_unique<SetWifiPass>());
     dispatcher.registerCommand(std::make_unique<WifiCommand>(dispatcher)); //necesita dispatcher para llamar a los otros dos comandos
@@ -694,4 +681,70 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
     //dispatcher.registerCommand(std::make_unique<UpdateWebCommand>()); //comando webupdate está en utils_cmd_webupdate.cpp, pero lo registramos acá porque es un comando de utilidad, no de actualización. Si lo registramos en utils_update_webs.cpp no va a aparecer en el help porque el help solo lista los comandos registrados en el dispatcher al momento de su creación, y si el comando update_web se registra después del help, entonces no va a aparecer en la lista de comandos disponibles que muestra el help. Por eso lo registramos acá, para que esté disponible desde el principio y aparezca en el help.
     register_update_web_command(dispatcher); //comando webupdate está en utils_cmd_webupdate.cpp
 
+}
+/************************************************
+ * Graba un comando de configuración en el archivo de configuración, reemplazando la línea si ya existe o agregándola al final si no existe. El formato del comando debe ser "nombre=valor". Por ejemplo: "ssid=MiRedWiFi". El archivo de configuración se define en CONFIG_FILE_PATH. Esta función se llama desde los comandos setssid y setwifipass para guardar la configuración WiFi de forma persistente.
+ *************************************************/
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <algorithm>
+
+void save_config(const char* new_cmd)
+{
+    const char* path = CONFIG_FILE_PATH;
+
+    std::ifstream infile(path);
+    std::vector<std::string> lines;
+    lines.reserve(16);   // evita realocaciones
+
+    std::string new_line(new_cmd);
+
+    // Extraer el nombre del comando (antes del '=')
+    std::string cmd_name;
+    {
+        size_t pos = new_line.find('=');
+        if (pos != std::string::npos)
+            cmd_name = new_line.substr(0, pos);
+        else
+            cmd_name = new_line; // caso raro
+    }
+
+    bool replaced = false;
+
+    if (infile.good()) {
+        std::string line;
+        while (std::getline(infile, line)) {
+
+            // Limpieza de espacios
+            std::string trimmed = line;
+            trimmed.erase(trimmed.find_last_not_of(" \t\r\n") + 1);
+
+            if (trimmed.rfind(cmd_name + "=", 0) == 0) {
+                // Esta línea es el comando a reemplazar
+                lines.push_back(new_line);
+                replaced = true;
+            } else {
+                // Mantener línea original
+                lines.push_back(line);
+            }
+        }
+        infile.close();
+    }
+
+    // Si no estaba, agregarlo al final
+    if (!replaced) {
+        lines.push_back(new_line);
+    }
+
+    // Guardar archivo completo
+    std::ofstream outfile(path, std::ios::trunc);
+    for (auto& l : lines) {
+        outfile << l << "\n";
+    }
+    outfile.close();
+    std::string log_msg = "save_config(): " + std::string(replaced ? "actualizado" : "agregado") + " '" + new_cmd + "' en " + path;
+    write_system_log("CONFIG", log_msg.c_str());
+    ESP_LOGI("CONFIG", "%s", log_msg.c_str());
 }

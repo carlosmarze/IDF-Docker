@@ -25,13 +25,13 @@ static const char *TAG_CONFIG = "CONFIG";
 // El nombre del archivo de configuración
 
 
-void cargar_config_desde_file(CommandDispatcher* disp) {
+bool cargar_config_desde_file(CommandDispatcher* disp) {
     // Usamos la macro que definimos antes
     FILE* f = fopen(CONFIG_FILE_PATH, "r"); 
     
     if (f == NULL) {
         ESP_LOGW(TAG_CONFIG, "No se encontró %s. El sistema iniciará con valores default.", CONFIG_FILE_PATH);
-        return;
+        return false;
     }
     char buffer[160];
     std::string respuesta;
@@ -55,12 +55,14 @@ void cargar_config_desde_file(CommandDispatcher* disp) {
         write_system_log(TAG_CONFIG,  respuesta.c_str());
         
         ESP_LOGD(TAG_CONFIG, "Respuesta: %s", respuesta.c_str());
+        // Si quieres seguir aplicando comandos incluso si uno falla, no retornes false aquí, solo loguea el error dentro del comando que se ejecute. Si quieres que falle toda la carga ante un error, podrías retornar false aquí si la respuesta indica un error.
     }
     
     fclose(f);
     respuesta = "Configuración de inicio completada.";
     write_system_log(TAG_CONFIG,  respuesta.c_str());
     ESP_LOGI(TAG_CONFIG, "%s", respuesta.c_str());
+    return true;
 }
 
 

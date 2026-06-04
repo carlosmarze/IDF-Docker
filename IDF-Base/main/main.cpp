@@ -43,7 +43,7 @@
 #define PAYLOAD_SIZE 128
 
 // Variables globales del proyecto
-int SensorID = 7001;
+int SensorID;
 char urlUpdate[128];
 QueueHandle_t command_queue = nullptr;
 
@@ -242,7 +242,12 @@ void app_task(void *pv)
         static_cast<CommandDispatcher*>(arg)->dispatcherTask();
     }, "dispatcher_task", 4096, global_dispatcher_ptr, 5, NULL);
 
-    cargar_config_desde_file(global_dispatcher_ptr);
+    if(!cargar_config_desde_file(global_dispatcher_ptr)) {
+        write_system_log("SYS", "Error al cargar la configuración desde el archivo.");
+        SensorID = SENSORID; //config.txt es un archivo con una lista de comandos, por ej setsensorid=7001
+    } else {
+        write_system_log("SYS", "Configuración cargada desde el archivo.");
+    }
 
     // ------------------------------------------------------------
     // FASE 4 — Conexión maestra

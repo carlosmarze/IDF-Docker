@@ -32,7 +32,7 @@ void setWifiPass(const std::string &pass);
 void setMiTSServer(const std::string &tsServer);
 
 void register_utils_commands(CommandDispatcher& dispatcher) ;
-
+void save_config(const char* new_cmd);
 #endif // UTILS_CMD_SET_H
 
 
