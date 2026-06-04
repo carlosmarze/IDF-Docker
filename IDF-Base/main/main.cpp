@@ -43,10 +43,10 @@
 #define PAYLOAD_SIZE 128
 
 // Variables globales del proyecto
-int SensorID;
+//int SensorID;
 char urlUpdate[128];
 QueueHandle_t command_queue = nullptr;
-
+//static bool first_run_done = false;
 extern CommandDispatcher dispatcher;
 extern CommandDispatcher* global_dispatcher_ptr;
 // Estructura de datos para la comunicación entre tareas
@@ -134,7 +134,7 @@ void service_starter_task(void *pvParameters)
 
     write_system_log("SYS", "Service Starter activo.");
 
-    static bool first_run_done = false;
+    //static bool first_run_done = false;
     static bool web_started = false;
     static bool aux_tasks_started = false;
 
@@ -194,8 +194,16 @@ void app_task(void *pv)
     littlefs_init();
     init_logger_system();
     //init_system_events();
+    if(!cargar_config_desde_file_directo()) {
+        std::string log_msg = "No se encontró " + std::string(CONFIG_FILE_PATH) + ". El sistema iniciará con valores default.";
+        write_system_log("SYS", log_msg.c_str());    
+        ESP_LOGW("SYS", "%s", log_msg.c_str());    
+        SensorID = SENSORID; //config.txt es un archivo con una lista de comandos, por ej setsensorid=7001
+    } else {
+        write_system_log("SYS", "Configuración cargada desde el archivo.");
+    }
 
-    std::string log_msg = "\n\nINICIANDO SISTEMA - VERSION: " + std::string(version_info);
+    std::string log_msg = "\n\nINICIANDO SISTEMA - VERSION: " + std::string(version_info) + ", SensorID: " + std::to_string(SensorID) + ", Heap Libre: " + std::to_string(esp_get_free_heap_size()) + " bytes";
     write_system_log("APP_MAIN", log_msg.c_str());
     ESP_LOGI("APP_MAIN", "%s", log_msg.c_str());
 
@@ -242,12 +250,7 @@ void app_task(void *pv)
         static_cast<CommandDispatcher*>(arg)->dispatcherTask();
     }, "dispatcher_task", 4096, global_dispatcher_ptr, 5, NULL);
 
-    if(!cargar_config_desde_file(global_dispatcher_ptr)) {
-        write_system_log("SYS", "Error al cargar la configuración desde el archivo.");
-        SensorID = SENSORID; //config.txt es un archivo con una lista de comandos, por ej setsensorid=7001
-    } else {
-        write_system_log("SYS", "Configuración cargada desde el archivo.");
-    }
+   
 
     // ------------------------------------------------------------
     // FASE 4 — Conexión maestra
@@ -265,10 +268,11 @@ void app_task(void *pv)
         while (time(nullptr) < 1000000000 && retry_ntp++ < 15)
             vTaskDelay(pdMS_TO_TICKS(1000));
     }
-
+    //Todo lo que va antes que esto tiene que ser SUPER estable porque si no el dispositivo puede quedar inutilizado sin forma de arreglarlo salvo reflasheando manualmente. Por eso el orden de las fases es tan importante, y por eso la fase OTA va al final, para que el dispositivo llegue a esa fase con todo lo demás funcionando bien y con la configuración cargada, para minimizar riesgos de fallos en OTA.
     // ------------------------------------------------------------
     // FASE 6 — OTA
     // ------------------------------------------------------------
+    /*
     std::string url_ota = urlUpdateDef;
     url_ota += "?VERSION=" + std::string(version_info);
     url_ota += "&SensorID=" + std::to_string(SensorID);
@@ -285,14 +289,30 @@ void app_task(void *pv)
             "https": "yes"
         }
     })";
-
-    ota_worker_start();
+    */
+    ota_worker_start(); //arranca la tarea y la cola de OTA, que queda esperando a que le submitan un trabajo para arrancar el proceso OTA. El comando OTA no hace el proceso OTA directamente, sino que le notifica a esta tarea para que lo haga, y así evitar cualquier posible bloqueo o retraso en el proceso OTA que pueda ocurrir al pasar por el dispatcher y sus colas, y además darle máxima prioridad al proceso OTA, que es crítico para el dispositivo.
 
     bits = xEventGroupGetBits(s_wifi_event_group);
-    if (bits & WIFI_CONNECTED_BIT) {
-        write_system_log("OTA", "Lanzando comando de actualización...");
-        ESP_LOGI("OTA", "Comando: %s", cmd_ota_str.c_str());
-        process_commands(CMD_SRC_UART, cmd_ota_str.c_str(), ' ', ',');
+    if (bits & WIFI_CONNECTED_BIT) { //Si no se conectó antes, no hace OTA
+        
+        std::string url_ota = urlUpdateDef;
+        url_ota += "?VERSION=" + std::string(version_info);
+        url_ota += "&SensorID=" + std::to_string(SensorID);
+        url_ota += "&MAC=" + get_mac_address();
+        std::string log_msg = "URL OTA generada: " + url_ota;
+        ESP_LOGI("OTA", "%s", log_msg.c_str());
+        write_system_log("OTA", log_msg.c_str());
+            
+        //en lugar de pasar por el dispatcher, que es lo que haría process_commands, vamos a submitir directo a la cola de OTA para minimizar riesgos de fallos en el proceso OTA, que es crítico y queremos que tenga la máxima prioridad y el menor número de puntos de fallo posible, además de evitar cualquier posible retraso o bloqueo que pueda ocurrir al pasar por el dispatcher y sus colas.
+        //process_commands(CMD_SRC_UART, cmd_ota_str.c_str(), ' ', ',');
+        ota_job_t job = {};
+        snprintf(job.url, sizeof(job.url), "%s", urlUpdate);    
+        strncpy(job.sha256_expected, "", sizeof(job.sha256_expected));
+        job.reboot_after = true;
+        job.partial_download = true;
+        job.chunk_size = 2048;
+        job.https = true;
+        ota_submit(&job); //submitimos directo, sin pasar por el dispatcher para minimizar riesgos de fallos en el proceso OTA, que es crítico y queremos que tenga la máxima prioridad y el menor número de puntos de fallo posible, además de evitar cualquier posible retraso o bloqueo que pueda ocurrir al pasar por el dispatcher y sus colas.
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 

@@ -14,14 +14,16 @@
 #include "utils_cmd_set.h"
 #include "utils_cmd_dispatcher.h" //para usar CommandDispatcher
 #include "utils_cmd_processor.h"
-#include "utils_ota_worker.h"
+#include "utils_cmd_webupdate.h"
 #include "utils_cmd_parser.h"
+#include "utils_config.h"
+#include "utils_ota_worker.h"
 #include "utils_webs.h"
 #include "utils_logger.h"
 #include "utils_config.h" //para save_wifi_network
 #include "utils_wifi.h" //para save_wifi_network
 #include "utils_mqtt.h"
-#include "utils_cmd_webupdate.h"
+
 #include "MisVariablesProyecto.h"
 
 static const char *TAG = "CMDSET";
@@ -43,7 +45,7 @@ public:
         save_config(cfg.c_str());
 
         std::string respuesta = "SensorID seteado a " + std::to_string(SensorID);
-        write_system_log("CONFIG", respuesta.c_str());
+        //write_system_log("CONFIG", respuesta.c_str());
         ESP_LOGI("CONFIG", "%s",respuesta.c_str());
         return "OK: Sensor ID seteado.";
     }
@@ -690,9 +692,14 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
 #include <vector>
 #include <string>
 #include <algorithm>
+extern bool first_run_done; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
 
 void save_config(const char* new_cmd)
 {
+    if(first_run_done) {
+    
+        return;
+    }
     const char* path = CONFIG_FILE_PATH;
 
     std::ifstream infile(path);

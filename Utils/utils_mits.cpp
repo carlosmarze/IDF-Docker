@@ -12,6 +12,8 @@
 #include "utils_http.h"
 #include "utils_mits.h"
 #include "MisVariablesProyecto.h"
+#include "utils_config.h" //para SensorID
+#include "utils_logger.h" //para write_system_log
 
 /************************************************************************************* 
 * WriteTBulk, Escribe lo que está en la estructura TSmessageWrite en MiTS.com

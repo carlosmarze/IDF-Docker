@@ -135,46 +135,6 @@ void task_3600_post()
 }
 
 
-void task_3600_postOLD() //borra luego de ajustar la otra función para que use writePost()
-{
-    //Post una vez por hora el estado del dispositivo (incluso en la primera ejecución al inicio, para que quede un registro en Mits desde el arranque)
-    std::string log_msg;
-    std::string temp;
-
-    if (g_first_run) {
-        strcpy(mensajeWrite.field_data[0], "Iniciando");
-    } else {
-        strcpy(mensajeWrite.field_data[0], "Idle");
-    }
-
-    strcpy(mensajeWrite.field_data[1], "Idle");
-    strcpy(mensajeWrite.field_data[2], "");
-    strcpy(mensajeWrite.field_data[3], "");
-    strcpy(mensajeWrite.field_data[4], "");
-    strcpy(mensajeWrite.field_data[5], "");
-    strcpy(mensajeWrite.field_data[6], "");
-
-    temp  = "Status=Online ";
-    temp += " IP=" + get_local_ip();
-    temp += " MAC=" + get_mac_address();
-    temp += " SSID=" + get_connected_ssid();
-    temp += " HR=" + get_current_time();
-    temp += " Ver";
-    temp += version_info;
-    temp += " SunRise=00:00:00";
-    temp += " SunSet=00:00:00";
-    temp += " Tmp=0";
-    temp += " Hum=0";
-    temp += " Wind=0";
-
-    printf("Mensaje8=%s\n", temp.c_str());
-    strcpy(mensajeWrite.field_data8, temp.c_str());
-
-    ESP_LOGI(TAG, "POST estado (cada 60 min)");
-    WriteTSBulk(&mensajeWrite, (char*)g_tsurl, g_response_web, sizeof(g_response_web));
-    ESP_LOGI(TAG, "POST MiTS OK. Respuesta: %s", g_response_web);
-}
-
 // ------------------------
 // 3600s: status + OTA
 // ------------------------

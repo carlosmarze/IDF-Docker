@@ -12,10 +12,12 @@
 
 // Inicialización de las variables globales declardas en el .h
 // Definición real de las variables
+int SensorID = 0;
 std::string g_pending_ssid = "";
 std::string g_pending_pass = "";
 app_config_t g_app_config = {}; // También inicializamos la estructura
 bool g_ota_en_progreso = false; // Variable global OTA
+bool first_run_done = false; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
 //bool wifi_ready = false; //indica si el wifi está vivo y operativo (con IP, no solo conectado a un AP)
 //bool g_manual_wifi_connect = false; // Indica si se solicitó una conexión WiFi manual (desde comando) para que el sistema no intente reconectar automáticamente
 
@@ -23,6 +25,29 @@ static const char *TAG_CONFIG = "CONFIG";
 // Definición de la variable global (Asignación de memoria, solo aquí)
 //app_config_t g_app_config;
 // El nombre del archivo de configuración
+
+static bool aplicar_config_linea_directo(const char* linea) {
+    if (strncmp(linea, "setsensorid=", 12) == 0) {
+        SensorID = atoi(linea + 12);
+        return true;
+    }
+    // otros comandos de config que solo setean variables
+    return true;
+}
+
+bool cargar_config_desde_file_directo() {
+    FILE* f = fopen(CONFIG_FILE_PATH, "r");
+    if (!f) return false;
+
+    char linea[128];
+    while (fgets(linea, sizeof(linea), f)) {
+        linea[strcspn(linea, "\r\n")] = 0;
+        if (linea[0] == '#' || strlen(linea) < 3) continue;
+        aplicar_config_linea_directo(linea);
+    }
+    fclose(f);
+    return true;
+}
 
 
 bool cargar_config_desde_file(CommandDispatcher* disp) {

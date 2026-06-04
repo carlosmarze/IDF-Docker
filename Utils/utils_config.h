@@ -36,8 +36,10 @@ extern std::string g_pending_pass;
 //extern bool wifi_ready;
 //extern bool g_manual_wifi_connect;
 //extern bool g_ota_en_progreso; // Variable global OTA
+extern int SensorID; // Identificador único del sensor lo definiremos en main.cpp o donde le pongamos el valor (leido de file seguramente)
 bool cargar_config_desde_file(CommandDispatcher* disp); // Movida aquí fuera
-
+bool cargar_config_desde_file_directo() ; // Carga directa sin pasar por el dispatcher, para usar en app_main antes de iniciar el dispatcher
+extern bool first_run_done; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
 
 #ifdef __cplusplus
 extern "C" {
