@@ -306,7 +306,7 @@ void app_task(void *pv)
         //en lugar de pasar por el dispatcher, que es lo que haría process_commands, vamos a submitir directo a la cola de OTA para minimizar riesgos de fallos en el proceso OTA, que es crítico y queremos que tenga la máxima prioridad y el menor número de puntos de fallo posible, además de evitar cualquier posible retraso o bloqueo que pueda ocurrir al pasar por el dispatcher y sus colas.
         //process_commands(CMD_SRC_UART, cmd_ota_str.c_str(), ' ', ',');
         ota_job_t job = {};
-        snprintf(job.url, sizeof(job.url), "%s", urlUpdate);    
+        snprintf(job.url, sizeof(job.url), "%s", url_ota.c_str());    
         strncpy(job.sha256_expected, "", sizeof(job.sha256_expected));
         job.reboot_after = true;
         job.partial_download = true;
