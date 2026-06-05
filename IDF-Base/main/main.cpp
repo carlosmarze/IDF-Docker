@@ -192,9 +192,9 @@ void app_task(void *pv)
     // FASE 0 — Infraestructura base
     // ------------------------------------------------------------
     littlefs_init();
-    init_logger_system();
+    init_logger_system(); //primer mensaje grabado desde logger_task
     //init_system_events();
-    if(!cargar_config_desde_file_directo()) {
+    if(!cargar_config_desde_file_directo()) { //No se usa cargar config_desde_file() porque esa función pasa por el dispatcher, y en esta etapa del arranque el dispatcher no está iniciado, entonces hacemos una carga directa sin pasar por el dispatcher, para cargar la configuración antes de iniciar el dispatcher y así tener la configuración lista para cuando el dispatcher arranque y registre los comandos.
         std::string log_msg = "No se encontró " + std::string(CONFIG_FILE_PATH) + ". El sistema iniciará con valores default.";
         write_system_log("SYS", log_msg.c_str());    
         ESP_LOGW("SYS", "%s", log_msg.c_str());    

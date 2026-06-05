@@ -22,7 +22,7 @@ void log_worker_task(void* arg)
 {
     log_event_t evt;
 
-    write_system_log(TAG, "Log worker iniciado");
+    write_system_log(TAG, "\n\nLog worker iniciado");
 
     while (true) {
         if (xQueueReceive(g_log_queue, &evt, portMAX_DELAY) == pdTRUE) {

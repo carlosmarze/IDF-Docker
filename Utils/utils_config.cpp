@@ -32,6 +32,13 @@ static bool aplicar_config_linea_directo(const char* linea) {
         return true;
     }
     // otros comandos de config que solo setean variables
+    //setuser
+    //setpass
+    //setmqttserver
+    //setmqttport
+    //setmqttuser
+    //setmqttpass
+    //setmqtttopic
     return true;
 }
 
