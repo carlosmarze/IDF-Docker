@@ -51,9 +51,8 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
         break;
 
     case HTTP_EVENT_ON_CONNECTED:
-        ESP_LOGI("HTTP", "CONNECTED: %s = %s",
-                 evt->header_key ? evt->header_key : "",
-                 evt->header_value ? evt->header_value : "");
+        // 🔥 CORREGIDO: No hay cabeceras todavía, solo avisar que conectó.
+        ESP_LOGI("HTTP", "CONNECTED"); 
         break;
 
     case HTTP_EVENT_HEADERS_SENT:
@@ -67,15 +66,14 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
         break;
 
     case HTTP_EVENT_ON_HEADERS_COMPLETE:
-        ESP_LOGI("HTTP", "HEADER Complete: %s = %s",
-                 evt->header_key ? evt->header_key : "",
-                 evt->header_value ? evt->header_value : "");
+        // 🔥 CORREGIDO: Los punteros ya son inválidos, no los imprimas.
+        ESP_LOGI("HTTP", "HEADER Complete (Todas las cabeceras recibidas)");
         break;
 
     case HTTP_EVENT_ON_STATUS_CODE:
-        ESP_LOGI("HTTP", "Status Code: %s = %s",
-                 evt->header_key ? evt->header_key : "",
-                 evt->header_value ? evt->header_value : "");
+        // 🔥 CORREGIDO: El código de estado se obtiene de otra forma, no de header_key.
+        // Si quieres loguearlo, usa esp_http_client_get_status_code(evt->client)
+        ESP_LOGI("HTTP", "Status Code received: %d", esp_http_client_get_status_code(evt->client));
         break;
 
     case HTTP_EVENT_ON_DATA:
@@ -157,7 +155,7 @@ esp_err_t http_perform_request(
     // Configuración del cliente HTTP
         // 🔥 INICIALIZACIÓN SEGURA (No depende del orden de los campos en IDF)
     esp_http_client_config_t config = {}; // Inicializa todo a 0/NULL automáticamente
-    
+
     config.url = url;
     config.event_handler = _http_event_handler;
     config.user_data = &ctx;              // <-- 🔥 Pasamos el contexto local
