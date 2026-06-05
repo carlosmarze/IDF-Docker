@@ -160,17 +160,23 @@ void CommandDispatcher::dispatcherTask() { //Acá me llega un comando en m.name 
 }
 */
 
+
+/*
 void CommandDispatcher::dispatcherTask() {
 
-    cmd_msg_t m;
-    std::string log_msg;
+    static cmd_msg_t m;
+    static std::string log_msg;
+    static std::string cmname;
+    static std::string buf;
+    static std::vector<std::string> args;
+    static std::string respuesta;
 
     while (true) {
 
         if (xQueueReceive(s_q, &m, portMAX_DELAY) != pdTRUE)
             continue;
 
-        std::string cmname = std::string(m.name);
+        static std::string cmname = std::string(m.name);
         std::string buf    = std::string(m.arg);
 
         //ESP_LOGI(TAG, "Recibido crudo: '%s %s'", cmname.c_str(), buf.c_str());
@@ -211,7 +217,7 @@ void CommandDispatcher::dispatcherTask() {
 
         //ESP_LOGI(TAG, "Comando='%s' Args=%d", cmname.c_str(), (int)args.size());
 
-        std::string respuesta;
+        static std::string respuesta;
 
         if ((int)args.size() < cmd->minArgs()) {
             respuesta = "Error: Faltan argumentos para '" + cmname + "'";
@@ -272,6 +278,117 @@ void CommandDispatcher::dispatcherTask() {
             printf("\r\n> %s\r\n", respuesta.c_str()); //para UART o comandos internos sin destino específico, lo dejo en consola y log pero no lo envío por WebSocket ni MQTT, para no saturar esos canales con respuestas que no las necesitan
             //write_system_log(TAG, respuesta.c_str()); //Comando desde UART o interno, lo dejo solo en el log para no saturar la consola, que es más para debug puntual
             //ESP_LOGI(TAG, "%s", respuesta.c_str());
+        }
+    }
+}
+*/
+//Versión de QWEN studio, con variables static declaradas una sola vez al principio para minimizar el uso de stack y evitar problemas de fragmentación, además de limpiar el vector de argumentos en cada iteración para evitar que se acumulen los argumentos de comandos anteriores en comandos nuevos, lo cual causaba errores difíciles de depurar. También agregué más logs para tener un registro claro de lo que se ejecuta y responde, y para detectar posibles problemas en el envío por WebSocket o MQTT. Además, agregué comentarios explicativos en cada sección del código para facilitar su comprensión y mantenimiento futuro.
+void CommandDispatcher::dispatcherTask() {
+
+    // 1. DECLARAR UNA SOLA VEZ AL PRINCIPIO (Todas en el segmento BSS, 0 bytes de stack)
+    static cmd_msg_t m;
+    static std::string log_msg;
+    static std::string cmname;
+    static std::string buf;
+    static std::vector<std::string> args;
+    static std::string respuesta;
+    static char res_topic[MAX_TOPIC_LENGTH]; // Movido aquí para ahorrar stack
+    static httpd_ws_frame_t ws_pkt;          // Movido aquí para ahorrar stack
+
+    while (true) {
+
+        if (xQueueReceive(s_q, &m, portMAX_DELAY) != pdTRUE)
+            continue;
+
+        // 2. ASIGNAR VALORES (Sin escribir el tipo de dato ni static)
+        cmname = m.name;
+        buf    = m.arg;
+        
+        // ⚠️ CRÍTICO: Como args es static, hay que limpiarlo en cada iteración
+        // Si no lo haces, los argumentos del comando anterior se sumarán a los nuevos
+        args.clear(); 
+
+        auto it = commands.find(cmname);
+        if (it == commands.end()) {
+            // Asignar a la variable static, no crear una nueva
+            respuesta = "Error: Comando desconocido '" + cmname + "'";
+            ESP_LOGW(TAG, "%s", respuesta.c_str());
+            continue;
+        }
+
+        Command *cmd = it->second.get();
+
+        // ============================================================
+        // 🔥 LÓGICA UNIVERSAL DE ARGUMENTOS
+        // ============================================================
+
+        if (!buf.empty()) {
+
+            if (cmd->positionalArgs()) {
+                args = tokenize(buf);
+            }
+            else if (cmd->minArgs() <= 1) {
+                args.push_back(buf);
+            }
+            else {
+                args = tokenize(buf);
+            }
+        }
+
+        log_msg = "SRC: " + std::to_string(m.src) + " - Comando: " + cmname + " " + std::string(m.arg) + " args#:" + std::to_string(args.size()) ;
+        write_system_log(TAG, log_msg.c_str());
+        ESP_LOGI(TAG, "%s", log_msg.c_str());
+
+        // 3. YA NO HACE FALTA DECLARAR "static std::string respuesta;" AQUÍ
+        if ((int)args.size() < cmd->minArgs()) {
+            respuesta = "Error: Faltan argumentos para '" + cmname + "'";
+            ESP_LOGW(TAG, "%s", respuesta.c_str());
+        } else {
+            ESP_LOGI(TAG, "Stack libre pre-ejecución: %d bytes", uxTaskGetStackHighWaterMark(NULL) * 4);
+            respuesta = cmd->execute(m.src, args);
+            ESP_LOGI(TAG, "Stack libre post-ejecución: %d bytes", uxTaskGetStackHighWaterMark(NULL) * 4);
+        }
+
+        // ============================================================
+        // 🔥 RUTEO DE RESPUESTA
+        // ============================================================
+        if (m.log) { 
+            write_system_log(TAG, respuesta.c_str());
+        }
+        ESP_LOGI(TAG, "Respuesta: %s", respuesta.c_str());
+
+        if (m.src == CMD_SRC_MQTT) {
+
+            // Usamos la variable static que declaramos al principio
+            generar_topico_mqtt("A", SensorID, res_topic, sizeof(res_topic));
+            publish_mqtt(res_topic, respuesta.c_str(), 0, 0);
+
+            ESP_LOGI(TAG, "Respuesta MQTT publicada en %s", res_topic);
+        }
+        else if (m.src == CMD_SRC_WEB) {
+
+            if (this->web_server != nullptr && m.client_fd != -1) {
+
+                // Usamos la variable static que declaramos al principio
+                memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+                ws_pkt.payload = (uint8_t*)respuesta.c_str();
+                ws_pkt.len = respuesta.length();
+                ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+
+                esp_err_t ret = httpd_ws_send_data(this->web_server, m.client_fd, &ws_pkt);
+
+                if (ret == ESP_OK) {
+                    ESP_LOGI(TAG, "Respuesta enviada por WebSocket a FD: %d", m.client_fd);
+                } else {
+                    ESP_LOGE(TAG, "Error enviando por WebSocket: %s", esp_err_to_name(ret));
+                }
+            } else {
+                ESP_LOGW(TAG, "No se pudo enviar respuesta Web: Server nulo o FD -1");
+                ESP_LOGI(TAG, "Respuesta (sin destino): %s", respuesta.c_str());
+            }
+        }
+        else {
+            printf("\r\n> %s\r\n", respuesta.c_str()); 
         }
     }
 }
