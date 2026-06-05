@@ -223,8 +223,9 @@ void CommandDispatcher::dispatcherTask() {
             //write_system_log(TAG, log_msg.c_str());
             //ESP_LOGI(TAG, "%s", log_msg.c_str());
             // Ejecución real: Capturamos el string de respuesta
-
+            ESP_LOGI(TAG, "Stack libre pre-ejecución: %d bytes", uxTaskGetStackHighWaterMark(NULL) * 4);
             respuesta = cmd->execute(m.src, args);
+            ESP_LOGI(TAG, "Stack libre post-ejecución: %d bytes", uxTaskGetStackHighWaterMark(NULL) * 4);
         }
 
         // ============================================================
