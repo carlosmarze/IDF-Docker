@@ -7,7 +7,7 @@
 #include <vector>
 //la siguiente es C++
 std::string http_get(const std::string& url); // Función de conveniencia para GET que devuelve un std::string, hasta 32K
-
+std::string http_get_dynamic(const std::string& url, size_t max_size = 32768); // Versión alternativa que permite especificar el tamaño máximo de la respuesta
 #ifdef __cplusplus
 
         extern "C"  {
@@ -38,6 +38,7 @@ esp_err_t http_perform_get(const char *url, char *response_buffer, size_t max_le
  * @return esp_err_t ESP_OK si la petición fue exitosa y la respuesta fue copiada.
  */
 esp_err_t http_perform_post(const char *url, const char *json_payload, char *response_buffer, size_t max_len, const char* content_type);
+
 
  void http_test_task(void *pvParameters);
  esp_err_t http_perform_request(
