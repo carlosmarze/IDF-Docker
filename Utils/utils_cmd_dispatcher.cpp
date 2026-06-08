@@ -68,7 +68,7 @@ bool CommandDispatcher::submit(const cmd_msg_t &msg) {
     //vamos a agregar aquí el flag para loguear o no cada comando, por ejemplo para comandos internos o de debug que no queremos saturar el log, pero que igual queremos procesar
 
     if (!s_q) return false;
-    return xQueueSend(s_q, &msg, 0) == pdTRUE;
+    return xQueueSendToBack(s_q, &msg, 0) == pdTRUE;
 }
 
 bool CommandDispatcher::submit(cmd_source_t src, const char *text) {
