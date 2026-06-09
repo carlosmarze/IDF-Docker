@@ -28,6 +28,13 @@
 //#define MQTT_TOPICA "miTSESP/A/"
 //#define MQTT_SUBSCRIBE "miTSESP/Q/"
 
+//Variables de conexión con la WEB, para el update OTA y para bajar archivos de configuración, 
+extern char urlUpdate[128]; //url para el update OTA
+#define URL_BASE "carze.pythonanywhere.com" //url base
+#define urlUpdateDef "https://carze.pythonanywhere.com/update" //url base para el update OTA, sin parámetros
+#define URL_FILES_UPDATE "https://carze.pythonanywhere.com/field/html" //url para bajar archivos de configuración. Ejemplo: https://carze.pythonanywhere.com/field/html?api_key=REZAQ4BH81OQP9PZ&SensorID=25
+//url para bajar archivos de configuración. Ejemplo: https://carze.pythonanywhere.com/field/html?api_key=REZAQ4BH81OQP9PZ&SensorID=25
+
 
 // --- VARIABLES Y FUNCIONES C++ (Fuera del extern "C") ---
 extern std::string g_pending_ssid;

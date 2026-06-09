@@ -2,6 +2,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "esp_log.h"
+#include "esp_http_client.h" //para el envío del resultado OTA al server
 #include "esp_https_ota.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -52,11 +53,55 @@ static bool ota_verify_sha256(const char *expected_hex,
     return true;
 }
 
+static void send_ota_result(const char* job_url, bool success)
+{
+    std::string url(job_url);
+
+    // 1) Reemplazar SOLO el path "/update" por "/updateresult"
+    //    Todo lo que está después (el ?VERSION=...&SensorID=...&MAC=...) queda intacto.
+    const char* needle = "/update";
+    size_t pos = url.find(needle);
+    if (pos == std::string::npos) {
+        ESP_LOGE("OTA_RESULT", "URL OTA inválida: %s", job_url);
+        return;
+    }
+
+    url.replace(pos, strlen(needle), "/updateresult");
+
+    // 2) Agregar &Result=OK/FAIL al final, sin tocar nada de lo anterior
+    url +=  "&Result=";
+    url += success ? "OK" : "FAIL";
+
+    ESP_LOGI("OTA_RESULT", "URL resultado OTA: %s", url.c_str());
+
+    esp_http_client_config_t config = {};
+    config.event_handler = http_event_handler; 
+    config.url = url.c_str();
+    config.method = HTTP_METHOD_GET;
+    config.timeout_ms = 5000;
+    config.skip_cert_common_name_check = true;
+    config.cert_pem = NULL;
+
+
+    esp_http_client_handle_t clienthttp = esp_http_client_init(&config);
+    if (!clienthttp) return;
+
+    esp_err_t err = esp_http_client_perform(clienthttp);
+    if (err == ESP_OK) {
+        ESP_LOGI("OTA_RESULT", "Resultado enviado. HTTP %d",
+                 esp_http_client_get_status_code(clienthttp));
+    } else {
+        ESP_LOGE("OTA_RESULT", "Error enviando resultado: %s", esp_err_to_name(err));
+    }
+
+    esp_http_client_cleanup(clienthttp);
+}
+
+
+
 // -----------------------------------------------------------------------------
 // Tarea principal OTA
 // -----------------------------------------------------------------------------
-
-
 
 static void ota_worker_task(void *arg) {
     
@@ -150,6 +195,7 @@ static void ota_worker_task(void *arg) {
         if (otasuccess) {
             esp_err_t err = esp_ota_end(update_handle);
             if (err == ESP_OK) {
+                send_ota_result(job.url, true); // Enviar resultado OK al server
                 esp_ota_set_boot_partition(update_partition);
                 log_msg = "OTA Ok. Reiniciando..."; 
                 write_system_log(TAG, log_msg.c_str());
@@ -159,8 +205,12 @@ static void ota_worker_task(void *arg) {
                 esp_restart();
             }
         } else {
-            if (ota_started) esp_ota_abort(update_handle);
+            if (ota_started) {
+                esp_ota_abort(update_handle);
+                send_ota_result(job.url,  false); // Enviar resultado FAIL al server
+            }
             // Si no llegamos a empezar el OTA, simplemente volvemos a la normalidad
+
             g_ota_en_progreso = false;
             // IMPORTANTE: Si detuvimos el MQTT, hay que volver a arrancarlo
             mqtt_app_start(); 
@@ -191,3 +241,5 @@ bool ota_submit(const ota_job_t *job) {
     ota_job_t copy = *job;
     return xQueueSend(s_ota_q, &copy, pdMS_TO_TICKS(200)) == pdTRUE;
 }
+
+
