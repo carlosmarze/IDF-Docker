@@ -1,6 +1,6 @@
 #ifndef MISVARIABLESPROYECTO_H
     #define MISVARIABLESPROYECTO_H
-    #define version_info "IDF6BAS20260605_V3" // Definición de la versión del firmware
+    #define version_info "IDF6BAS20260608_V1" // Definición de la versión del firmware
     //extern int SensorID ; // Identificador único del sensor lo definiremos en main.cpp o donde le pongamos el valor (leido de file seguramente)
     extern char urlUpdate[128]; //url para el update OTA
     #define URL_BASE "carze.pythonanywhere.com" //url base

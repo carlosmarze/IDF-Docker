@@ -1,4 +1,4 @@
-# idf_component_register(SRCS "sched_tasks.cpp" "main.cpp"
+# idf_component_register(SRCS "cmd_Led.cpp" "project_tasks.cpp" "sched_tasks.cpp" "main.cpp"
 #                    INCLUDE_DIRS ".")
 #target_link_libraries(${COMPONENT_TARGET} PRIVATE esp_wifi esp_event nvs_flash lwip log mqtt)
 # target_link_libraries(${COMPONENT_TARGET} PRIVATE esp_wifi esp_event nvs_flash lwip log mqtt littlefs)
@@ -6,6 +6,7 @@ idf_component_register(
     SRCS 
         "main.cpp"
         "sched_tasks.cpp"
+        "project_tasks.cpp"
     INCLUDE_DIRS "."
     
     # AGREGAR ESTA LÍNEA CON TODOS LOS COMPONENTES NECESARIOS

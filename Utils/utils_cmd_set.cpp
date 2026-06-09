@@ -188,7 +188,7 @@ public:
 
 
 
-class LedCommand : public Command {
+/*class LedCommand : public Command {
 public:
     const char* name() const override { return "set_led"; }
     const char* usage() const override { return "[nroLed=On/Off] - TBI Setea el estado del LED nroLed"; } // <-- Añadir
@@ -201,7 +201,7 @@ public:
         return "LED set";
     }
 };
-
+*/
 class WifiCommand : public Command {
 private:
     CommandDispatcher& _dispatcher;
@@ -662,7 +662,7 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
     dispatcher.registerCommand(std::make_unique<SetMiTSServer>());
     //dispatcher.registerCommand(std::make_unique<CmdFreeHeap>());
     //dispatcher.registerCommand(std::make_unique<HelpCommand>());
-    dispatcher.registerCommand(std::make_unique<LedCommand>());
+    //dispatcher.registerCommand(std::make_unique<LedCommand>());
     
     dispatcher.registerCommand(std::make_unique<OtaCommand>());
     dispatcher.registerCommand(std::make_unique<SetSensorID>());

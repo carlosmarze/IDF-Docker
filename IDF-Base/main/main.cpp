@@ -37,6 +37,7 @@
 #include "utils_sched.h"
 #include "utils_events.h"
 #include "sched_tasks.h"
+#include "project_tasks.h"
 #include "MisVariablesProyecto.h"
 
 #define TAG "APP_MAIN"
@@ -321,7 +322,11 @@ void app_task(void *pv)
     ESP_LOGI("APP_MAIN", "Fin Init. Heap libre: %d", esp_get_free_heap_size());
 
     // ------------------------------------------------------------
-    // FASE 8 — Loop principal
+    // FASE 8 — arranque de tareas particulares del proyecto (tareas de ejemplo, se pueden eliminar o modificar según las necesidades del proyecto)
+        // ------------------------------------------------------------
+    start_project_tasks(); //tareas particulares del proyecto, como lectura de sensores, procesamiento de datos, etc. Se arrancan después de iniciar el scheduler para que queden bajo su control y puedan usar sus mecanismos de temporización y gestión de tareas, y así tener un mejor control sobre su ejecución y evitar bloqueos o retrasos en el arranque del sistema. Estas tareas son solo de ejemplo, se pueden eliminar o modificar según las necesidades del proyecto, y se
+    // ------------------------------------------------------------
+    // FASE 9 — Loop principal
     // ------------------------------------------------------------
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(60000));
