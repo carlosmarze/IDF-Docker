@@ -197,7 +197,7 @@ static void ota_worker_task(void *arg) {
             if (err == ESP_OK) {
                 send_ota_result(job.url, true); // Enviar resultado OK al server
                 esp_ota_set_boot_partition(update_partition);
-                log_msg = "OTA Ok. Reiniciando..."; 
+                log_msg = "\nOTA Ok. Reiniciando..\n"; 
                 write_system_log(TAG, log_msg.c_str());
                 ESP_LOGI(TAG,  "%s", log_msg.c_str());
                 //ESP_LOGI(TAG, "OTA Ok. Reiniciando...");
@@ -207,6 +207,9 @@ static void ota_worker_task(void *arg) {
         } else {
             if (ota_started) {
                 esp_ota_abort(update_handle);
+                log_msg = "\nOTA FAIL!!\n"; 
+                write_system_log(TAG, log_msg.c_str());
+                ESP_LOGW(TAG,  "%s", log_msg.c_str());
                 send_ota_result(job.url,  false); // Enviar resultado FAIL al server
             }
             // Si no llegamos a empezar el OTA, simplemente volvemos a la normalidad
