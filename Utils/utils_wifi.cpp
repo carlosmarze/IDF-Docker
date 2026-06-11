@@ -26,6 +26,7 @@
 int s_retry_num = 0;
 bool wifi_ready = false;
 bool g_manual_wifi_connect = false;
+volatile bool g_eapol_fail = false; // Variable  para detectar fallos EAPOL1
 //bool g_ota_en_progreso = false;
 
 EventGroupHandle_t s_wifi_event_group = NULL;
@@ -57,39 +58,54 @@ static void wifi_event_handler(void* arg,
 {
     log_event_t levt;
     bool log_event = false;
-
+    
     switch (event_id) {
 
         case WIFI_EVENT_STA_DISCONNECTED:
+            {
+                wifi_event_sta_disconnected_t* ev = (wifi_event_sta_disconnected_t*)event_data;
 
-            if (g_manual_wifi_connect) {
-                levt = LOG_EVT_WIFI_DISCONNECTED_MANUAL;
-                log_event = true;
-            } else {
-                levt = LOG_EVT_WIFI_DISCONNECTED;
-                log_event = true;
+                // Detectar EAPOL1 / deauth
+                if (ev->reason == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT ||
+                    ev->reason == WIFI_REASON_AUTH_EXPIRE ||
+                    ev->reason == WIFI_REASON_MIC_FAILURE ||
+                    ev->reason == WIFI_REASON_HANDSHAKE_TIMEOUT) 
+                {
+                    g_eapol_fail = true;
+                } else {
+                    g_eapol_fail = false;
+                }
+                //fin detección EAPOL1
+
+                if (g_manual_wifi_connect) {
+                    levt = LOG_EVT_WIFI_DISCONNECTED_MANUAL;
+                    log_event = true;
+                } else {
+                    levt = LOG_EVT_WIFI_DISCONNECTED;
+                    log_event = true;
+                }
+
+                // Estado interno
+                wifi_ready = false;
+
+                // Limpiar bit de conexión
+                xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+
+                // Despertar a conectar_wifi() / esperar_conexion()
+                xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+
+                // Cortar MQTT si corresponde
+                if (!g_ota_en_progreso) {
+                    mqtt_app_stop();
+                }
+
+                // 👇 IMPORTANTE:
+                // NO reconectar acá
+                // NO s_retry_num++
+                // NO esp_wifi_connect()
+                // La reconexión la maneja conectar_wifi() y la estrategia maestra
+                break;
             }
-
-            // Estado interno
-            wifi_ready = false;
-
-            // Limpiar bit de conexión
-            xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-
-            // Despertar a conectar_wifi() / esperar_conexion()
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-
-            // Cortar MQTT si corresponde
-            if (!g_ota_en_progreso) {
-                mqtt_app_stop();
-            }
-
-            // 👇 IMPORTANTE:
-            // NO reconectar acá
-            // NO s_retry_num++
-            // NO esp_wifi_connect()
-            // La reconexión la maneja conectar_wifi() y la estrategia maestra
-            break;
 
         case WIFI_EVENT_AP_START:
             levt = LOG_EVT_WIFI_AP_START;
@@ -107,7 +123,10 @@ static void wifi_event_handler(void* arg,
             ESP_LOGI(TAG, "WiFi STA conectado");
             wifi_ready = true;
             break;
-
+        case WIFI_EVENT_HOME_CHANNEL_CHANGE:
+            ESP_LOGI(TAG, "WIFI_EVENT_HOME_CHANNEL_CHANGE");
+            //wifi_ready = true;
+            break;
         default:
             ESP_LOGW(TAG, "WIFI_EVENT desconocido id=%ld", event_id);
             break;
@@ -290,7 +309,75 @@ extern "C" void wifi_hardware_init(void) {
     // Tarea quitada de aquí para lanzarla en el momento justo
 }
 //Wifi Conectar con SSID y PASS dinámicos
-bool conectar_wifi(const char* ssid, const char* pass, int timeout_ms) {
+bool conectar_wifi(const char* ssid, const char* pass, int timeout_ms)
+{
+    const int MAX_RETRIES = 5;
+    const int RESET_DRIVER_EVERY = 3;
+
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "Intentando conectar a SSID: %s", ssid);
+    LOGI(TAG, "%s", buffer);
+
+    for (int intento = 1; intento <= MAX_RETRIES; intento++) {
+
+        LOGI(TAG, "[%s] Intento %d/%d", ssid, intento, MAX_RETRIES);
+
+        // Reset del driver cada 3 intentos
+        if (intento % RESET_DRIVER_EVERY == 0) {
+            LOGW(TAG, "Reset del driver WiFi antes del intento %d", intento);
+
+            esp_wifi_stop();
+            vTaskDelay(pdMS_TO_TICKS(300));
+            esp_wifi_start();
+            vTaskDelay(pdMS_TO_TICKS(300));
+        }
+
+        // Limpiar flags
+        g_eapol_fail = false;
+        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
+
+        // Configurar SSID/PASS
+        wifi_config_t wifi_config = {};
+        strncpy((char*)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid) - 1);
+        strncpy((char*)wifi_config.sta.password, pass, sizeof(wifi_config.sta.password) - 1);
+        esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+
+        // Conectar
+        esp_wifi_disconnect();
+        vTaskDelay(pdMS_TO_TICKS(200));
+        esp_wifi_connect();
+
+        // Esperar resultado
+        EventBits_t bits = xEventGroupWaitBits(
+            s_wifi_event_group,
+            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            pdFALSE, pdFALSE,
+            pdMS_TO_TICKS(timeout_ms)
+        );
+
+        if (bits & WIFI_CONNECTED_BIT) {
+            LOGI(TAG, "[%s] Conectado exitosamente", ssid);
+            return true;
+        }
+
+        // Si falló, analizar motivo
+        if (g_eapol_fail) {
+            ESP_LOGW(TAG, "[%s] Fallo EAPOL/Handshake. Reintentando...", ssid);
+        } else {
+            ESP_LOGW(TAG, "[%s] Fallo genérico. Reintentando...", ssid);
+        }
+
+        // Backoff progresivo
+        int backoff_ms = 300 + (intento * 300);
+        vTaskDelay(pdMS_TO_TICKS(backoff_ms));
+    }
+
+    LOGE(TAG, "[%s] Fallaron todos los intentos", ssid);
+    return false;
+}
+
+
+bool conectar_wifiOLD(const char* ssid, const char* pass, int timeout_ms) {
     // 1. Detenemos cualquier intento previo
     LOGI(TAG, "disconnect wifi: " );
     //write_system_log(TAG, log_msg.c_str());

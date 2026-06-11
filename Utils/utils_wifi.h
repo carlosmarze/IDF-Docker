@@ -88,7 +88,7 @@ extern bool g_manual_wifi_connect;
 //extern bool g_ota_en_progreso;
 
 extern EventGroupHandle_t s_wifi_event_group;
-
+extern volatile bool g_eapol_fail;
 //estas funciones son C no C++ por eso deben ir fuera del extern "C"
 std::string get_local_ip() ;
 std::string get_connected_ssid() ;
