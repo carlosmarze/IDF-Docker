@@ -263,7 +263,7 @@ void wifi_check_task(void *pvParameter) {
 
 //Wifi hardware init sin conectar
 extern "C" void wifi_hardware_init(void) {
-    write_system_log(TAG, "Iniciando wifi HW.");
+    LOGI(TAG, "Iniciando wifi HW.");
     
     if (s_wifi_event_group == NULL) {
         s_wifi_event_group = xEventGroupCreate();
@@ -283,14 +283,14 @@ extern "C" void wifi_hardware_init(void) {
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
-    write_system_log(TAG, "fin wifi HW.");
+    LOGI(TAG, "fin wifi HW.");
     // Tarea quitada de aquí para lanzarla en el momento justo
 }
 //Wifi Conectar con SSID y PASS dinámicos
 bool conectar_wifi(const char* ssid, const char* pass, int timeout_ms) {
     // 1. Detenemos cualquier intento previo
-    std::string log_msg = "disconnect wifi: " ;
-    write_system_log(TAG, log_msg.c_str());
+    LOGI(TAG, "disconnect wifi: " );
+    //write_system_log(TAG, log_msg.c_str());
     esp_wifi_disconnect();
     s_retry_num = 0;  // <--- ¡ESTO ES LO QUE FALTABA!
 
@@ -303,17 +303,19 @@ bool conectar_wifi(const char* ssid, const char* pass, int timeout_ms) {
     // 3. Aplicar configuración (SOLO UNA VEZ)
     esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     if (err != ESP_OK) {
-        log_msg = "Error al configurar WiFi: " + std::to_string(err);
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGE(TAG, "Error WiFi (0x%x)", err);
+        //log_msg = "Error al configurar WiFi: " + std::to_string(err);
+        //write_system_log(TAG, log_msg.c_str());
+        LOGE(TAG, "Error WiFi (0x%x)", err);
+        //ESP_LOGE(TAG, "Error WiFi (0x%x)", err);
         return false;
     }
 
     // 4. Preparar Log
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "Conectando a SSID: %s", ssid);
-    write_system_log(TAG, buffer);
-    ESP_LOGI(TAG, "%s", buffer);
+    //write_system_log(TAG, buffer);
+    LOGI(TAG, "%s", buffer);
+    //ESP_LOGI(TAG, "%s", buffer);
     
     // 5. Limpiar bits y Conectar
     xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
@@ -332,8 +334,9 @@ bool conectar_wifi(const char* ssid, const char* pass, int timeout_ms) {
 
     if (bits & WIFI_CONNECTED_BIT) {
         snprintf(buffer, sizeof(buffer), "Exito! Guardando %s en el historial.", ssid);
-        write_system_log(TAG, buffer);
-        ESP_LOGI(TAG, "%s", buffer);
+        //write_system_log(TAG, buffer);
+        //ESP_LOGI(TAG, "%s", buffer);
+        LOGI(TAG, "%s", buffer);
         return true;
     } 
     
@@ -343,7 +346,7 @@ bool conectar_wifi(const char* ssid, const char* pass, int timeout_ms) {
 
 //Inicar modo AP si todo falla 
 void iniciar_modo_ap(const char* ssid, const char* pass) {
-    write_system_log(TAG, "Configurando Modo AP de rescate...");
+    LOGI(TAG, "Configurando Modo AP de rescate...");
 
     wifi_config_t ap_config = {};
     
@@ -368,8 +371,9 @@ void iniciar_modo_ap(const char* ssid, const char* pass) {
     // Log de confirmación
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "AP Listo. SSID: %s, Pass: %s", ssid, (strlen(pass) > 0 ? pass : "OPEN"));
-    write_system_log(TAG, buffer);
-    ESP_LOGI(TAG, "%s", buffer);
+    //write_system_log(TAG, buffer);
+    //ESP_LOGI(TAG, "%s", buffer);
+    LOGI(TAG, "%s", buffer);
 }
 
 //Funciones para obtener info de la conexión actual
@@ -471,7 +475,8 @@ void save_wifi_network(const char* ssid, const char* pass) {
         fclose(f_write);
     }
 
-    write_system_log(TAG, nuevo_json);
+    //write_system_log(TAG, nuevo_json);
+    LOGI(TAG, "%s", nuevo_json);
 
     free(nuevo_json);
     cJSON_Delete(root);
@@ -494,8 +499,8 @@ bool conectar_wifi_desde_json() {
     FILE* f = fopen(WIFI_JSON_FILE, "r");
     //write_system_log(TAG, log_msg.c_str());
     if (!f) {
-        write_system_log(TAG, "No se encontro json Wi-Fi.");
-        ESP_LOGW(TAG, "No se encontró historial Wi-Fi.");
+        LOGI(TAG, "No se encontro json Wi-Fi.");
+        //ESP_LOGW(TAG, "No se encontró historial Wi-Fi.");
         return false;
     }
     
@@ -510,14 +515,15 @@ bool conectar_wifi_desde_json() {
     cJSON* root = cJSON_Parse(data);
     free(data);
     if (!root) {
-        write_system_log(TAG, "Error parseando json Wi-Fi.");
+        LOGE(TAG, "Error parseando json Wi-Fi.");
         return false;
     }
 
     cJSON* networks = cJSON_GetObjectItem(root, "networks");
     int total = cJSON_GetArraySize(networks);
     int start_idx = cJSON_GetObjectItem(root, "last_used")->valueint;
-    write_system_log(TAG, "Indice: " + std::to_string(start_idx));
+    //write_system_log(TAG, "Indice: " + std::to_string(start_idx));
+    LOGI(TAG, "Indice: %d", start_idx);
     if (start_idx >= total) start_idx = total - 1; // Seguridad
 
     bool conectado = false;
@@ -559,14 +565,14 @@ bool conectar_wifi_desde_json() {
 
 
 bool iniciar_proceso_conexion_maestra() {
-    write_system_log(TAG, "--- Iniciando Estrategia de Conexión Maestra ---");
+    LOGI(TAG, "--- Iniciando Estrategia de Conexión Maestra ---");
     
     // NIVEL 1: Intentar con el historial JSON
     // Esta función ya recorre circularmente todas las redes guardadas
-    write_system_log(TAG, "Nivel 1: Probando historial JSON...");
+    LOGI(TAG, "Nivel 1: Probando historial JSON...");
     g_sistema_inicializando = true; // Bloqueamos al vigilante
     if (conectar_wifi_desde_json()) {
-        write_system_log(TAG, "Conexión exitosa via Nivel 1 (JSON).");
+        LOGI(TAG, "Conexión exitosa via Nivel 1 (JSON).");
         g_sistema_inicializando = false; // Liberamos al vigilante para que cuide la conexión de ahora en más
         g_manual_wifi_connect = false; // Reiniciamos la bandera de conexión manual porque ya se conectó exitosamente
         return true; 
@@ -574,9 +580,9 @@ bool iniciar_proceso_conexion_maestra() {
 
     // NIVEL 2: Intentar con la red por defecto (Hardcoded)
     // Útil si el usuario reseteó el equipo o si es la primera vez que arranca
-    write_system_log(TAG, "Nivel 2: Probando credenciales default...");
+    LOGI(TAG, "Nivel 2: Probando credenciales default...");
     if (conectar_wifi(SSIDDEFAULT, PASSDEFAULT, 10000)) {
-        write_system_log(TAG, "Conexión exitosa via Nivel 2 (Default).");
+        LOGI(TAG, "Conexión exitosa via Nivel 2 (Default).");
         // Importante: Guardamos en JSON para que la próxima vez sea Nivel 1
         save_wifi_network(SSIDDEFAULT, PASSDEFAULT); 
         g_sistema_inicializando = false; // Liberamos al vigilante para que cuide la conexión de ahora en más
@@ -586,7 +592,7 @@ bool iniciar_proceso_conexion_maestra() {
 
     // NIVEL 3: El último recurso (NVS Nativa)
     // A veces el driver tiene grabada una red que no está en nuestro JSON
-    write_system_log(TAG, "Nivel 3: Probando recuperación desde NVS...");
+    LOGI(TAG, "Nivel 3: Probando recuperación desde NVS...");
     wifi_config_t nvs_cfg;
     if (esp_wifi_get_config(WIFI_IF_STA, &nvs_cfg) == ESP_OK && strlen((char*)nvs_cfg.sta.ssid) > 0) {
         // Limpiamos los bits antes de intentar
@@ -594,7 +600,7 @@ bool iniciar_proceso_conexion_maestra() {
         
         if (esp_wifi_connect() == ESP_OK) {
             if (esperar_conexion(10000)) { // Usamos la función reusable que creamos
-                write_system_log(TAG, "Conexión exitosa via Nivel 3 (NVS).");
+                LOGI(TAG, "Conexión exitosa via Nivel 3 (NVS).");
                 save_wifi_network((char*)nvs_cfg.sta.ssid, (char*)nvs_cfg.sta.password);
                 g_sistema_inicializando = false; // Liberamos al vigilante para que cuide la conexión de ahora en más
                 g_manual_wifi_connect = false; // Reiniciamos la bandera de conexión manual porque ya se conectó exitosamente
@@ -605,7 +611,7 @@ bool iniciar_proceso_conexion_maestra() {
 
     // NIVEL FINAL: Modo Punto de Acceso (AP)
     // Si llegamos aquí, nada funcionó. El equipo se vuelve un AP para ser configurado.
-    write_system_log(TAG, "FALLO TOTAL: Iniciando Modo AP de emergencia.");
+    LOGE(TAG, "FALLO TOTAL: Iniciando Modo AP de emergencia.");
     iniciar_modo_ap(MODO_AP_SSID, MODO_AP_PASS);
     g_sistema_inicializando = false;
     g_manual_wifi_connect = false; // Reiniciamos la bandera de conexión manual porque no se conectó
@@ -692,7 +698,7 @@ bool delete_wifi_network(const char* ssid_to_delete) {
         fclose(f_write);
     }
 
-    write_system_log(TAG, nuevo_json);
+    LOGI(TAG, "JSON actualizado: %s", nuevo_json);
 
     free(nuevo_json);
     cJSON_Delete(root);
