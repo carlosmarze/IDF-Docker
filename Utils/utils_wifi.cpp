@@ -94,15 +94,18 @@ static void wifi_event_handler(void* arg,
         case WIFI_EVENT_AP_START:
             levt = LOG_EVT_WIFI_AP_START;
             log_event = true;
+            wifi_ready = false;
             break;
 
         case WIFI_EVENT_AP_STACONNECTED:
             levt = LOG_EVT_WIFI_AP_STACONNECTED;
             log_event = true;
+            wifi_ready = false;
             break;
 
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI(TAG, "WiFi STA conectado");
+            wifi_ready = true;
             break;
 
         default:
