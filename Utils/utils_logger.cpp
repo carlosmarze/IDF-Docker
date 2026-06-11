@@ -18,6 +18,16 @@ static SemaphoreHandle_t log_mutex = nullptr;
 //Crear logger asincrónica con cola para eventos. Se inicializan desde init_logger
 QueueHandle_t g_log_queue = nullptr; //Para la cola de mensajes a loggear desde otros archivos (ej: MQTT, WiFi, etc.) que no pueden usar write_system_log directamente por temas de stack o deadlocks. El LoggerTask leerá esta cola y llamará a write_system_log con los mensajes recibidos.
 static const char* TAG = "LOG_EV";
+
+
+
+
+// Función interna de formateo de logs para que acepte "printf-like" arguments
+static void format_log_message(char* buffer, size_t size, const char* format, va_list args) {
+    vsnprintf(buffer, size, format, args);
+}
+
+
 void log_worker_task(void* arg)
 {
     log_event_t evt;
@@ -96,6 +106,74 @@ void rotate_logs() {
     }
 }
 
+// Función principal de logging
+void write_system_log_new(log_level_t level, const char* tag, const char* format, ...) {
+    if (log_mutex == NULL) return;
+    
+    xSemaphoreTake(log_mutex, portMAX_DELAY);
+    
+    // 1. Formatear el mensaje del usuario
+    char message[LOG_BUFFER_SIZE];
+    va_list args;
+    va_start(args, format);
+    format_log_message(message, sizeof(message), format, args);
+    va_end(args);
+    
+    // 2. Llamar a ESP_LOGx según el nivel
+    switch (level) {
+        case LOG_LEVEL_DEBUG:
+            ESP_LOGD(tag, "%s", message);
+            break;
+        case LOG_LEVEL_INFO:
+            ESP_LOGI(tag, "%s", message);
+            break;
+        case LOG_LEVEL_WARN:
+            ESP_LOGW(tag, "%s", message);
+            break;
+        case LOG_LEVEL_ERROR:
+            ESP_LOGE(tag, "%s", message);
+            break;
+    }
+    
+    // 3. Control de rotación
+    struct stat st;
+    if (stat(MAIN_LOG, &st) == 0 && st.st_size >= MAX_LOG_SIZE) {
+        rotate_logs();
+    }
+
+    // 4. Abrir en modo append
+    FILE* f = fopen(MAIN_LOG, "a");
+    if (f == NULL) {
+        xSemaphoreGive(log_mutex);
+        return;
+    }
+
+    // 5. Timestamp inteligente
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    
+    char timestamp[32];
+    if (timeinfo.tm_year < (2020 - 1900)) { 
+        snprintf(timestamp, sizeof(timestamp), "UP:%llds", esp_timer_get_time() / 1000000);
+    } else {
+        strftime(timestamp, sizeof(timestamp), "%d/%m %H:%M:%S", &timeinfo);
+    }
+
+    // 6. Escritura al archivo
+    fprintf(f, "[%s] [%s] %s\n", timestamp, tag, message);
+
+    // 7. Forzar escritura a Flash
+    fflush(f); 
+    
+    fclose(f);
+    xSemaphoreGive(log_mutex);
+}
+
+
+
+//ver de eliminarla después de probar la nueva versión con macros, para evitar confusiones. O dejarla pero marcarla como deprecated o algo así.
 void write_system_log(const char* tag, const char* message) {
     xSemaphoreTake(log_mutex, portMAX_DELAY);
     struct stat st;

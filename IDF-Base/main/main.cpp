@@ -204,9 +204,11 @@ void app_task(void *pv)
         write_system_log("SYS", "Configuración cargada desde el archivo.");
     }
 
-    std::string log_msg = "\n\nINICIANDO SISTEMA - VERSION: " + std::string(version_info) + ", SensorID: " + std::to_string(SensorID) + ", Heap Libre: " + std::to_string(esp_get_free_heap_size()) + " bytes";
-    write_system_log("APP_MAIN", log_msg.c_str());
-    ESP_LOGI("APP_MAIN", "%s", log_msg.c_str());
+    
+    //std::string log_msg = "\n\nINICIANDO SISTEMA - VERSION: " + std::string(version_info) + ", SensorID: " + std::to_string(SensorID) + ", Heap Libre: " + std::to_string(esp_get_free_heap_size()) + " bytes";
+    LOGI(TAG, "\n\nINICIANDO SISTEMA - VERSION: %s, SensorID: %d, Heap Libre: %u bytes", version_info, SensorID, esp_get_free_heap_size());  
+    //write_system_log("APP_MAIN", log_msg.c_str());
+    //ESP_LOGI("APP_MAIN", "%s", log_msg.c_str());
 
     setenv("TZ", "ART3", 1);
     tzset();
@@ -283,9 +285,10 @@ void app_task(void *pv)
         url_ota += "?VERSION=" + std::string(version_info);
         url_ota += "&SensorID=" + std::to_string(SensorID);
         url_ota += "&MAC=" + get_mac_address();
-        std::string log_msg = "URL OTA generada: " + url_ota;
-        ESP_LOGI("OTA", "%s", log_msg.c_str());
-        write_system_log("OTA", log_msg.c_str());
+        //std::string log_msg = "URL OTA generada: " + url_ota;
+        LOGI("OTA", "URL OTA generada: %s", url_ota.c_str());
+        //ESP_LOGI("OTA", "%s", log_msg.c_str());
+        //write_system_log("OTA", log_msg.c_str());
             
         //en lugar de pasar por el dispatcher, que es lo que haría process_commands, vamos a submitir directo a la cola de OTA para minimizar riesgos de fallos en el proceso OTA, que es crítico y queremos que tenga la máxima prioridad y el menor número de puntos de fallo posible, además de evitar cualquier posible retraso o bloqueo que pueda ocurrir al pasar por el dispatcher y sus colas.
         //process_commands(CMD_SRC_UART, cmd_ota_str.c_str(), ' ', ',');

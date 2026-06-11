@@ -14,7 +14,26 @@ extern "C" {
 #endif
 // Cola global de logs de eventos wque no pueden logearse directamente (ej: eventos MQTT, WiFi, etc.) porque necesitan ser muy livianas para evitar stack overflow o deadlocks. Esta cola es leída por el LoggerTask para escribir en el sistema de archivos.
 extern QueueHandle_t g_log_queue;
-// Códigos de evento para logging
+
+// Niveles de log
+typedef enum {
+    LOG_LEVEL_DEBUG = 0,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_WARN,
+    LOG_LEVEL_ERROR
+} log_level_t;
+
+// Buffer compartido para formateo
+#define LOG_BUFFER_SIZE 256
+// Macros helper para facilitar el uso
+#define LOGD(tag, format, ...) write_system_log_new(LOG_LEVEL_DEBUG, tag, format, ##__VA_ARGS__)
+#define LOGI(tag, format, ...) write_system_log_new(LOG_LEVEL_INFO, tag, format, ##__VA_ARGS__)
+#define LOGW(tag, format, ...) write_system_log_new(LOG_LEVEL_WARN, tag, format, ##__VA_ARGS__)
+#define LOGE(tag, format, ...) write_system_log_new(LOG_LEVEL_ERROR, tag, format, ##__VA_ARGS__)
+
+void write_system_log_new(log_level_t level, const char* tag, const char* format, ...) ;
+
+// Códigos de evento para logging, revisar, lo de los evt, creo que no se usa más
 typedef enum {
     LOG_EVT_NONE = 0,
     LOG_EVT_WIFI_DISCONNECTED,
