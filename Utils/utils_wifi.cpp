@@ -270,14 +270,15 @@ void wifi_check_task(void *pvParameter) {
 
         // Si el sistema está en modo AP, no molestamos con reconexiones
         if (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA) {
-            ESP_LOGI(TAG, "Equipo en modo AP. Postergando chequeo.");
-            continue;
+            LOGI(TAG, "Equipo en modo AP. Chequeando WiFi...");
+            //ESP_LOGI(TAG, "Equipo en modo AP. Chequeando WiFi...");
+            //continue;
         }
 
         // Si estamos en modo STA, verificamos si tenemos los bits de conexión
         EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
         if (!(bits & WIFI_CONNECTED_BIT)) {
-            ESP_LOGW(TAG, "WiFi desconectado detectado por watchdog. Reintentando...");
+            LOGW(TAG, "WiFi desconectado detectado por watchdog. Reintentando...");
             iniciar_proceso_conexion_maestra();
         }
     }
