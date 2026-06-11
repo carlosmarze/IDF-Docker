@@ -56,10 +56,7 @@ void task_60()
         size_t pos = resp.find(CMDWEBPREFIX);
         if (pos != std::string::npos) {
             std::string cmd_str = resp.substr(pos + strlen(CMDWEBPREFIX));
-            log_msg = "Comandos web detectados: '" + cmd_str + "'";
-            write_system_log(TAG, log_msg.c_str());
-            ESP_LOGI(TAG, "%s", log_msg.c_str());
-
+            LOGI(TAG, "Comandos web detectados: '%s'", cmd_str.c_str());
             process_commands(
                 CMD_SRC_UART,
                 cmd_str,
@@ -75,9 +72,8 @@ void task_60()
         }
 
     } else {
-        log_msg = "Fallo GET keepalive: " + get_url3 + " Error: " + std::string(g_response_web);
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGE(TAG, "%s", log_msg.c_str());
+        LOGE(TAG, "Fallo GET keepalive: %s Error: %s", get_url3.c_str(), g_response_web);
+       
         ESP_LOGW(TAG, "Error: %s", g_response_web);
     }
 
@@ -122,15 +118,11 @@ void task_3600_post()
     );
 
     if (!ok) {
-        log_msg = "POST estado NO enviado (mutex ocupado + 5seg)";
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGW(TAG, "%s", log_msg.c_str());
+        LOGW(TAG, "POST estado NO enviado (mutex ocupado + 5seg)");
         return;
     }
 
-    log_msg = "POST enviado. Respuesta: " + std::string(g_response_web);
-    write_system_log(TAG, log_msg.c_str());
-    ESP_LOGI(TAG, "%s", log_msg.c_str());
+    LOGI(TAG, "POST enviado. Respuesta: %s", g_response_web);
    
 }
 

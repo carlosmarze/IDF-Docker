@@ -70,10 +70,7 @@ public:
 
 static void project_tasks(void* arg)
 {
-    std::string log_msg = "Tareas del proyecto iniciadas";
-    ESP_LOGI(TAG, "%s", log_msg.c_str());
-    write_system_log(TAG, log_msg.c_str());
-
+    LOGI(TAG, "Tareas del proyecto iniciadas"); 
     uint32_t seconds = 0;
     //verificar acá lo que necesite la tarea, por ejemplo si necesita esperar a que el WiFi esté conectado, o a que el NTP esté sincronizado, o a que algún recurso esté listo, etc. Para eso pueden usar eventos, flags, o simplemente revisar el estado de las cosas antes de entrar al loop principal de la tarea, y si no están listas, hacer un vTaskDelay y seguir revisando hasta que estén listas, para evitar que la tarea intente hacer cosas que no van a funcionar porque el sistema no está listo aún.
     dispatcher.registerCommand(std::make_unique<PinCommand>());

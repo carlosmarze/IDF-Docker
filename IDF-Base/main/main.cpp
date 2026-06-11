@@ -120,7 +120,7 @@ void check_ntp_status_task(void *pvParameter) {
 // ============================================================
 void service_starter_task(void *pvParameters)
 {
-    write_system_log("SYS", "Service Starter: Esperando resolución de OTA...");
+    LOGI("SYS", "Service Starter: Esperando resolución de OTA...");
 
     int timeout_ota = 0;
     while (g_ota_en_progreso && timeout_ota < 120) {
@@ -129,11 +129,11 @@ void service_starter_task(void *pvParameters)
     }
 
     if (g_ota_en_progreso) {
-        write_system_log("SYS", "OTA excedió tiempo. Liberando servicios.");
+        LOGI("SYS", "OTA excedió tiempo. Liberando servicios.");
         g_ota_en_progreso = false;
     }
 
-    write_system_log("SYS", "Service Starter activo.");
+    LOGI("SYS", "Service Starter activo.");
 
     //static bool first_run_done = false;
     static bool web_started = false;
@@ -196,12 +196,10 @@ void app_task(void *pv)
     init_logger_system(); //primer mensaje grabado desde logger_task
     //init_system_events();
     if(!cargar_config_desde_file_directo()) { //No se usa cargar config_desde_file() porque esa función pasa por el dispatcher, y en esta etapa del arranque el dispatcher no está iniciado, entonces hacemos una carga directa sin pasar por el dispatcher, para cargar la configuración antes de iniciar el dispatcher y así tener la configuración lista para cuando el dispatcher arranque y registre los comandos.
-        std::string log_msg = "No se encontró " + std::string(CONFIG_FILE_PATH) + ". El sistema iniciará con valores default.";
-        write_system_log("SYS", log_msg.c_str());    
-        ESP_LOGW("SYS", "%s", log_msg.c_str());    
+        LOGW("SYS", "No se encontró %s. El sistema iniciará con valores default.", CONFIG_FILE_PATH);
         SensorID = SENSORID; //config.txt es un archivo con una lista de comandos, por ej setsensorid=7001
     } else {
-        write_system_log("SYS", "Configuración cargada desde el archivo.");
+        LOGI("SYS", "Configuración cargada desde el archivo.");
     }
 
     
@@ -224,7 +222,7 @@ void app_task(void *pv)
 
     struct stat st;
     if (stat(WIFI_JSON_FILE, &st) != 0) {
-        write_system_log("SYS", "wifi.json no detectado. Creando inicial...");
+        LOGW("SYS", "wifi.json no detectado. Creando inicial...");
         save_wifi_network(SSIDDEFAULT, PASSDEFAULT);
     }
 
