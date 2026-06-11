@@ -133,6 +133,10 @@ void write_system_log_new(log_level_t level, const char* tag, const char* format
         case LOG_LEVEL_ERROR:
             ESP_LOGE(tag, "%s", message);
             break;
+        case LOG_LEVEL_NOLOG:
+            // No se realiza logging
+            break;
+        
     }
     
     // 3. Control de rotación

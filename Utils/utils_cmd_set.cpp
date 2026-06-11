@@ -443,7 +443,7 @@ public:
         clear_all_logs();
         
         // Opcional: registrar que se limpió
-        write_system_log("SYSTEM", "Logs reseteados por el usuario.");
+        LOGI("SYSTEM", "Logs reseteados por el usuario.");
         
         return "OK: Todos los archivos de log han sido eliminados.";
     }
@@ -748,7 +748,7 @@ void save_config(const char* new_cmd)
         outfile << l << "\n";
     }
     outfile.close();
-    std::string log_msg = "save_config(): " + std::string(replaced ? "actualizado" : "agregado") + " '" + new_cmd + "' en " + path;
-    write_system_log("CONFIG", log_msg.c_str());
-    ESP_LOGI("CONFIG", "%s", log_msg.c_str());
+    LOGI("CONFIG", "save_config(): " + std::string(replaced ? "actualizado" : "agregado") + " '" + new_cmd + "' en " + path)    ;
+    // write_system_log("CONFIG", log_msg.c_str());
+    // ESP_LOGI("CONFIG", "%s", log_msg.c_str());
 }

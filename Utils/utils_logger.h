@@ -30,6 +30,7 @@ typedef enum {
 #define LOGI(tag, format, ...) write_system_log_new(LOG_LEVEL_INFO, tag, format, ##__VA_ARGS__)
 #define LOGW(tag, format, ...) write_system_log_new(LOG_LEVEL_WARN, tag, format, ##__VA_ARGS__)
 #define LOGE(tag, format, ...) write_system_log_new(LOG_LEVEL_ERROR, tag, format, ##__VA_ARGS__)
+#define LOGN(tag, format, ...) write_system_log_new(LOG_LEVEL_NOLOG, tag, format, ##__VA_ARGS__)
 
 void write_system_log_new(log_level_t level, const char* tag, const char* format, ...) ;
 
