@@ -20,7 +20,8 @@ typedef enum {
     LOG_LEVEL_DEBUG = 0,
     LOG_LEVEL_INFO,
     LOG_LEVEL_WARN,
-    LOG_LEVEL_ERROR
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_NOLOG
 } log_level_t;
 
 // Buffer compartido para formateo
