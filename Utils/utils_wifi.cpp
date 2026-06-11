@@ -237,9 +237,9 @@ void wifi_check_task(void *pvParameter) {
         vTaskDelay(pdMS_TO_TICKS(300000)); // 5 minutos
 
         if (g_ota_en_progreso || g_sistema_inicializando) {
-            std::string log_msg = "Watchdog WiFi: Sistema ocupado (OTA o Init), saltando chequeo.";
-            write_system_log(TAG, log_msg.c_str());
-            ESP_LOGI(TAG, "%s", log_msg.c_str());
+            LOGI(TAG, "Watchdog WiFi: Sistema ocupado (OTA o Init), saltando chequeo.");
+            //write_system_log(TAG, log_msg.c_str());
+            //ESP_LOGI(TAG, "%s", log_msg.c_str());
             continue;
         }
 
@@ -488,9 +488,11 @@ static void reset_wifi_retry_count() {
 */
 // Función para intentar conectar usando el historial
 bool conectar_wifi_desde_json() {
-    std::string log_msg = "Usando historial de " + std::string(WIFI_JSON_FILE);
+    //std::string log_msg = "Usando historial de " + std::string(WIFI_JSON_FILE);
+    LOGI(TAG, "Usando historial de %s", WIFI_JSON_FILE);
+    
     FILE* f = fopen(WIFI_JSON_FILE, "r");
-    write_system_log(TAG, log_msg.c_str());
+    //write_system_log(TAG, log_msg.c_str());
     if (!f) {
         write_system_log(TAG, "No se encontro json Wi-Fi.");
         ESP_LOGW(TAG, "No se encontró historial Wi-Fi.");
@@ -525,9 +527,9 @@ bool conectar_wifi_desde_json() {
         cJSON* item = cJSON_GetArrayItem(networks, i);
         const char* s = cJSON_GetObjectItem(item, "ssid")->valuestring;
         const char* p = cJSON_GetObjectItem(item, "pass")->valuestring;
-        log_msg = "Probando index " + std::to_string(i) + ": " + std::string(s);
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG, "%s", log_msg.c_str() );
+        LOGI(TAG,"Probando index %d:  %s", i, s);
+        //write_system_log(TAG, log_msg.c_str());
+        //ESP_LOGI(TAG, "%s", log_msg.c_str() );
         if (conectar_wifi(s, p, 10000)) {
             save_wifi_network(s, p); // Actualiza last_used
             conectado = true; break;
@@ -540,9 +542,9 @@ bool conectar_wifi_desde_json() {
             cJSON* item = cJSON_GetArrayItem(networks, i);
             const char* s = cJSON_GetObjectItem(item, "ssid")->valuestring;
             const char* p = cJSON_GetObjectItem(item, "pass")->valuestring;
-            log_msg = "Probando index " + std::to_string(i) + ": " + std::string(s);
-            write_system_log(TAG, log_msg.c_str());
-            ESP_LOGI(TAG, "%s", log_msg.c_str());
+            LOGI(TAG,"Probando index %d: %s", i, s);
+            //write_system_log(TAG, log_msg.c_str());
+            //ESP_LOGI(TAG, "%s", log_msg.c_str());
 
             if (conectar_wifi(s, p, 10000)) {
                 save_wifi_network(s, p);
