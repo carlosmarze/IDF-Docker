@@ -20,7 +20,7 @@ extern CommandDispatcher dispatcher; // Dispatcher global para comandos, definid
 #define TAG "MAIN_LOOP"
 // 6. Probar petición HTTP (opcional) La task se arranca desde main.cpp
 void http_test_task(void *pvParameters) {
-    std::string log_msg;
+    //std::string log_msg;
     
    
    const char *tsurl = URL_BASE; //url base para miTS, definida en MisVariablesProyecto.h
@@ -145,9 +145,9 @@ void http_test_task(void *pvParameters) {
 
                     // Extraer todo lo que viene después de TSComm,
                     std::string cmd_str = resp.substr(pos + strlen(CMDWEBPREFIX));
-                    log_msg = "Comandos web detectados: '" + cmd_str + "'";
-                    write_system_log(TAG, log_msg.c_str());
-                    ESP_LOGI(TAG, "%s", log_msg.c_str());
+                    LOGI(TAG, "Comandos web detectados: '%s'", cmd_str.c_str());
+                    //write_system_log(TAG, log_msg.c_str());
+                    //ESP_LOGI(TAG, "%s", log_msg.c_str());
                     //ESP_LOGI("MAIN_HTTP", "Comandos web detectados: '%s'", cmd_str.c_str());
 
                     // Ejecutar comandos usando el parser universal
@@ -165,10 +165,10 @@ void http_test_task(void *pvParameters) {
                 }
 
             } else {
-                log_msg = "Fallo la petición GET de keepalive: " + get_url3 + " Error: " + std::string(response_web);
-                write_system_log(TAG, log_msg.c_str());
-                ESP_LOGE(TAG, "%s", log_msg.c_str());
-                ESP_LOGW(TAG, "Error: %s", response_web);
+                LOGI(TAG, "Fallo la petición GET de keepalive: %s Error: %s", get_url3.c_str(), response_web);
+                //write_system_log(TAG, log_msg.c_str());
+                //ESP_LOGE(TAG, "%s", log_msg.c_str());
+                //LOGW(TAG, "Error: %s", response_web);
             }
 
         }
@@ -204,9 +204,9 @@ void http_test_task(void *pvParameters) {
                 }
             })";
 
-            log_msg = "comando generado: " + cmd_ota_str;
+            //log_msg = "comando generado: " + cmd_ota_str;
             //write_system_log(TAG, log_msg.c_str());
-            ESP_LOGI(TAG, "%s", log_msg.c_str());
+            LOGI(TAG, "comando generado: %s", cmd_ota_str.c_str());
             
            // ESP_LOGI(TAG, "comando generado: %s", cmd_ota_str.c_str());
             process_commands(CMD_SRC_UART, cmd_ota_str.c_str(), ' ', ',');

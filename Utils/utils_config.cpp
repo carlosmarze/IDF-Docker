@@ -77,23 +77,23 @@ bool cargar_config_desde_file(CommandDispatcher* disp) {
         
         snprintf(buffer, sizeof(buffer), "Aplicando: %s", linea);
         respuesta = buffer;
-        ESP_LOGI(TAG_CONFIG, "%s", respuesta.c_str());
+        LOGI(TAG_CONFIG, "%s", respuesta.c_str());
         
-        write_system_log(TAG_CONFIG, respuesta.c_str());
+        //write_system_log(TAG_CONFIG, respuesta.c_str());
         // 3. Ejecución inmediata
         // Si tu dispatcher tiene un método que devuelve string (como vimos ayer), 
         // puedes incluso loguear la respuesta del comando.
         respuesta = disp->submit(CMD_SRC_SYSTEM, linea);
-        write_system_log(TAG_CONFIG,  respuesta.c_str());
+        //write_system_log(TAG_CONFIG,  respuesta.c_str());
         
-        ESP_LOGD(TAG_CONFIG, "Respuesta: %s", respuesta.c_str());
+        LOGD(TAG_CONFIG, "Respuesta: %s", respuesta.c_str());
         // Si quieres seguir aplicando comandos incluso si uno falla, no retornes false aquí, solo loguea el error dentro del comando que se ejecute. Si quieres que falle toda la carga ante un error, podrías retornar false aquí si la respuesta indica un error.
     }
     
     fclose(f);
     respuesta = "Configuración de inicio completada.";
-    write_system_log(TAG_CONFIG,  respuesta.c_str());
-    ESP_LOGI(TAG_CONFIG, "%s", respuesta.c_str());
+    //write_system_log(TAG_CONFIG,  respuesta.c_str());
+    LOGI(TAG_CONFIG, "%s", respuesta.c_str());
     return true;
 }
 

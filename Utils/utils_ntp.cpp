@@ -26,7 +26,7 @@ static void set_ntp_status(ntp_sync_status_t status) {
 }
 // Modificar el Callback para que imprima la hora LOCAL (con GMT aplicado)
 static void time_sync_notification_cb(struct timeval *tv) {
-    std::string log_msg = "";
+    //std::string log_msg = "";
     set_ntp_status(NTP_STATUS_SYNCHRONIZED);
     
     // Imprimir hora legible aplicando la Zona Horaria configurada
@@ -37,9 +37,9 @@ static void time_sync_notification_cb(struct timeval *tv) {
     
     char strftime_buf[64];
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    log_msg = "Hora sincronizada y ajustada (Local): " + std::string(strftime_buf);
-    write_system_log(TAG, log_msg.c_str());
-    ESP_LOGI(TAG, "%s", log_msg.c_str());
+    LOGI(TAG, "Hora sincronizada y ajustada (Local): %s", strftime_buf);
+    //write_system_log(TAG, log_msg.c_str());
+    //ESP_LOGI(TAG, "%s", log_msg.c_str());
 }
 
 
@@ -54,10 +54,10 @@ ntp_sync_status_t get_ntp_status(void) {
 
 // --- Tarea Principal Corregida ---
 static void ntp_sync_task(void *pvParameter) {
-    std::string log_msg = "";
-    log_msg = "Iniciando ntp_sync_task.";
-    write_system_log(TAG, log_msg.c_str());
-    ESP_LOGI(TAG, "%s", log_msg.c_str());
+    //std::string log_msg = "";
+    LOGI(TAG, "Iniciando ntp_sync_task.");
+    //write_system_log(TAG, log_msg.c_str());
+    //ESP_LOGI(TAG, "%s", log_msg.c_str());
     //ESP_LOGI(TAG, "Iniciando ntp_sync_task...");
 
     while (1) {
@@ -97,10 +97,11 @@ static void ntp_sync_task(void *pvParameter) {
             vTaskDelay(pdMS_TO_TICKS(1000));
             retry++;
         }
-        log_msg = "Resultado NTP: " + std::string((get_ntp_status() == NTP_STATUS_SYNCHRONIZED) ? "SINCRO OK" : "FALLÓ") + 
-                  " | TZ: " + (getenv("TZ") ? getenv("TZ") : "UTC");
-        write_system_log(TAG, log_msg.c_str()); 
-        ESP_LOGI(TAG, "%s", log_msg.c_str());
+        LOGI(TAG, "Resultado NTP: %s | TZ: %s", 
+             (get_ntp_status() == NTP_STATUS_SYNCHRONIZED) ? "SINCRO OK" : "FALLÓ",
+             getenv("TZ") ? getenv("TZ") : "UTC");
+        //write_system_log(TAG, log_msg.c_str());
+        //ESP_LOGI(TAG, "%s", log_msg.c_str());
        // ESP_LOGI(TAG, "Resultado NTP: %s | TZ: %s", 
          //        (get_ntp_status() == NTP_STATUS_SYNCHRONIZED) ? "SINCRO OK" : "FALLÓ",
            //      getenv("TZ") ? getenv("TZ") : "UTC");
@@ -114,9 +115,9 @@ static void ntp_sync_task(void *pvParameter) {
             
             // Si perdemos WiFi, paramos SNTP y volvemos al inicio de la tarea
             if (!(bits & WIFI_CONNECTED_BIT)) {
-                log_msg = "WiFi perdido. Reiniciando ciclo de monitoreo NTP.";
-                write_system_log(TAG, log_msg.c_str());
-                ESP_LOGW(TAG, "%s", log_msg.c_str());
+                LOGW(TAG, "WiFi perdido. Reiniciando ciclo de monitoreo NTP.");
+                //write_system_log(TAG, log_msg.c_str());
+                //ESP_LOGW(TAG, "%s", log_msg.c_str());
                // ESP_LOGW(TAG, "WiFi perdido. Reiniciando ciclo de monitoreo NTP.");
                 esp_sntp_stop();
                 set_ntp_status(NTP_STATUS_FAILED);
@@ -134,16 +135,16 @@ static void ntp_sync_task(void *pvParameter) {
 
 // ... (ntp_client_init se mantiene igual) ...
 void ntp_client_init(uint32_t sync_interval_s, const char *server1, const char *tz_string) {
-    std::string log_msg = "";
+    //std::string log_msg = "";
     if (g_ntp_status_mutex == NULL) {
         g_ntp_status_mutex = xSemaphoreCreateMutex();
     }
     if (sync_interval_s >= 15) g_sync_interval_s = sync_interval_s;
     if (server1 != NULL) g_ntp_server1 = server1;
     
-    log_msg = "Server NTP: " + std::string(g_ntp_server1);
-    write_system_log(TAG, log_msg.c_str());
-    ESP_LOGI(TAG, "%s", log_msg.c_str());
+    LOGI(TAG, "Server NTP: %s", g_ntp_server1);
+    //write_system_log(TAG, log_msg.c_str());
+    //ESP_LOGI(TAG, "%s", log_msg.c_str());
     //ESP_LOGI(TAG, "Server NTP: %s", g_ntp_server1);
 
     if (tz_string != NULL) {
@@ -151,9 +152,9 @@ void ntp_client_init(uint32_t sync_interval_s, const char *server1, const char *
         // El 1 indica que debe sobrescribir si ya existe
         setenv("TZ", tz_string, 1);
         tzset(); // Aplica el cambio inmediatamente
-        log_msg = "Zona horaria configurada a: " + std::string(tz_string);
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG, "%s", log_msg.c_str());
+        LOGI(TAG, "Zona horaria configurada a: %s", tz_string);
+        //write_system_log(TAG, log_msg.c_str());
+        //ESP_LOGI(TAG, "%s", log_msg.c_str());
     } else {
         // Por defecto UTC
         setenv("TZ", "UTC0", 1);

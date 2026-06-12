@@ -18,12 +18,12 @@ void sched_register_task_3600_updt(sched_cb_t cb) { cb_3600_updt = cb; }
 
 static void scheduler_task(void* arg)
 {
-    std::string log_msg;
+    //std::string log_msg;
 
     uint32_t seconds = 0;
-    log_msg = "Scheduler iniciado";
-    write_system_log(TAG, log_msg.c_str());
-    ESP_LOGI(TAG, "%s",log_msg.c_str());
+    LOGI(TAG, "Scheduler iniciado");
+    //write_system_log(TAG, log_msg.c_str());
+    //ESP_LOGI(TAG, "%s",log_msg.c_str());
     //ESP_LOGI(TAG, "Scheduler iniciado");
 
     while (true) {

@@ -76,7 +76,7 @@ static const char* LOG_EVENT_MSG[LOG_EVT_MAX] = {
 void log_worker_task(void* arg);
 
 // Estas funciones pueden ser llamadas desde archivos .c y .cpp
-void write_system_log(const char* tag, const char* message);
+//void write_system_log(const char* tag, const char* message);
 void rotate_logs();
 void clear_all_logs();
 //void init_logger_mutex();
@@ -94,7 +94,7 @@ void init_logger_system();
 #include <string> // Importante: el include de string solo aquí
 
 // Esta sobrecarga (overload) SOLO es visible para archivos .cpp
-void write_system_log(const char* tag, const std::string& message);
+//void write_system_log(const char* tag, const std::string& message);
 
 #endif
 // ----------------------------

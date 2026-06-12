@@ -105,7 +105,7 @@ static void send_ota_result(const char* job_url, bool success)
 
 static void ota_worker_task(void *arg) {
     
-    std::string log_msg = "";
+    //std::string log_msg = "";
     ota_job_t job = {};
     // Esperar a que el grupo de eventos esté listo
     while (s_wifi_event_group == NULL) vTaskDelay(pdMS_TO_TICKS(100));
@@ -128,9 +128,9 @@ static void ota_worker_task(void *arg) {
 
         esp_http_client_handle_t client = esp_http_client_init(&config);
         if (esp_http_client_open(client, 0) != ESP_OK) {
-            log_msg = "Error: No se pudo abrir conexión con el servidor OTA";
-            write_system_log(TAG, log_msg.c_str());
-            ESP_LOGE(TAG, "%s", log_msg.c_str());
+            LOGE(TAG, "Error: No se pudo abrir conexión con el servidor OTA");
+            //write_system_log(TAG, log_msg.c_str());
+            //ESP_LOGE(TAG, "%s", log_msg.c_str());
             //ESP_LOGE(TAG, "Error: No se pudo conectar al servidor");
             esp_http_client_cleanup(client);
             g_ota_en_progreso = false;
@@ -163,17 +163,17 @@ static void ota_worker_task(void *arg) {
                     // No es un binario. Probablemente es el texto "No hay archivo nuevo"
                     upgrade_data_buf[data_read < 63 ? data_read : 63] = '\0'; // Asegurar null terminator
                     
-                    log_msg = "Servidor respondió: " + std::string(upgrade_data_buf);
-                    write_system_log(TAG, log_msg.c_str());
-                    ESP_LOGW(TAG,  "%s", log_msg.c_str());
+                    LOGW(TAG, "Servidor respondió: %s", upgrade_data_buf);
+                    //write_system_log(TAG, log_msg.c_str());
+                    //ESP_LOGW(TAG,  "%s", log_msg.c_str());
                    
                     break; // Salimos del bucle sin haber llamado a esp_ota_begin
                 }
                 
                 // Si llegamos aquí, ES un binario. Ahora sí, preparamos el sistema:
-                log_msg = "Binario detectado. Iniciando escritura ";
-                write_system_log(TAG, log_msg.c_str());
-                ESP_LOGI(TAG,  "%s", log_msg.c_str());
+                LOGI(TAG, "Binario detectado. Iniciando escritura ");
+                //write_system_log(TAG, log_msg.c_str());
+                //ESP_LOGI(TAG,  "%s", log_msg.c_str());
 
                 //ESP_LOGI(TAG, "Binario detectado. Iniciando escritura...");
                 mqtt_app_stop(); // <-- Ahora sí lo detenemos si quieres máxima seguridad
@@ -197,9 +197,9 @@ static void ota_worker_task(void *arg) {
             if (err == ESP_OK) {
                 send_ota_result(job.url, true); // Enviar resultado OK al server
                 esp_ota_set_boot_partition(update_partition);
-                log_msg = "\nOTA Ok. Reiniciando..\n"; 
-                write_system_log(TAG, log_msg.c_str());
-                ESP_LOGI(TAG,  "%s", log_msg.c_str());
+                LOGI(TAG, "\n\n\nOTA Ok. Reiniciando..\n\n"); 
+                //write_system_log(TAG, log_msg.c_str());
+                //ESP_LOGI(TAG,  "%s", log_msg.c_str());
                 //ESP_LOGI(TAG, "OTA Ok. Reiniciando...");
                 vTaskDelay(pdMS_TO_TICKS(1000));
                 esp_restart();
@@ -207,9 +207,9 @@ static void ota_worker_task(void *arg) {
         } else {
             if (ota_started) {
                 esp_ota_abort(update_handle);
-                log_msg = "\nOTA FAIL!!\n"; 
-                write_system_log(TAG, log_msg.c_str());
-                ESP_LOGW(TAG,  "%s", log_msg.c_str());
+                LOGW(TAG, "\nOTA FAIL!!\n"); 
+                //write_system_log(TAG, log_msg.c_str());
+                //ESP_LOGW(TAG,  "%s", log_msg.c_str());
                 send_ota_result(job.url,  false); // Enviar resultado FAIL al server
             }
             // Si no llegamos a empezar el OTA, simplemente volvemos a la normalidad
@@ -219,9 +219,9 @@ static void ota_worker_task(void *arg) {
             mqtt_app_start(); 
         }
         
-        log_msg = "Ciclo OTA terminado. Esperando..."; 
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG,  "%s", log_msg.c_str());
+        LOGI(TAG, "Ciclo OTA terminado. Esperando..."); 
+        //write_system_log(TAG, log_msg.c_str());
+        //ESP_LOGI(TAG,  "%s", log_msg.c_str());
         //ESP_LOGI(TAG, "Ciclo OTA terminado. Esperando...");
     }
 }

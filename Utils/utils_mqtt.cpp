@@ -58,7 +58,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
             generar_topico_mqtt("Q", SensorID, sub_topic, sizeof(sub_topic));
             esp_mqtt_client_subscribe(client, sub_topic, 0);
 
-            ESP_LOGI("MQTT", "Suscrito a %s", sub_topic);
+            LOGI("MQTT", "Suscrito a %s", sub_topic);
             break;
         }
         case MQTT_EVENT_SUBSCRIBED: {
@@ -105,7 +105,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
         }
         default:
         {
-            ESP_LOGW("MQTT", "Evento MQTT desconocido id=%d", event->event_id);
+            LOGW("MQTT", "Evento MQTT desconocido id=%d", event->event_id);
             break;
         }
 
@@ -137,7 +137,7 @@ void publish_mqtt(const char* topic, const char* data, int qos, int retain) {
 
 // --- Watchdog (solo reconnect suave, sin stop/start ni destroy) ---
 void mqtt_watchdog_task(void *pvParameters) {
-    std::string log_msg = "";
+    //std::string log_msg = "";
     int mqtt_fail_count = 0;
 
     while (1) {
@@ -171,9 +171,9 @@ void mqtt_watchdog_task(void *pvParameters) {
         mqtt_fail_count++;
         printf("[MQTT-WD] Desconectado. Intento %d...\n", mqtt_fail_count);
 
-        log_msg = "[MQTT-WD] Forzando reconexión suave (reconnect).";
-        write_system_log(TAG, log_msg.c_str());
-        ESP_LOGI(TAG, "%s", log_msg.c_str());
+        LOGI(TAG, "[MQTT-WD] Forzando reconexión suave (reconnect).");
+        //write_system_log(TAG, log_msg.c_str());
+        //ESP_LOGI(TAG, "%s", log_msg.c_str());
 
         if (mqtt_mutex) xSemaphoreTake(mqtt_mutex, portMAX_DELAY);
         esp_mqtt_client_reconnect(client);

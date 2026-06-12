@@ -90,7 +90,7 @@ void CommandDispatcher::dispatcherTask() {
 
     // 1. DECLARAR UNA SOLA VEZ AL PRINCIPIO (Todas en el segmento BSS, 0 bytes de stack)
     static cmd_msg_t m;
-    static std::string log_msg;
+    //static std::string log_msg;
     static std::string cmname;
     static std::string buf;
     static std::vector<std::string> args;

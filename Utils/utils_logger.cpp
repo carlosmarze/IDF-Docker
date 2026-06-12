@@ -32,18 +32,18 @@ void log_worker_task(void* arg)
 {
     log_event_t evt;
 
-    write_system_log(TAG, "\n\nLog worker iniciado");
+    LOGI(TAG, "\n\nLog worker iniciado");
 
     while (true) {
         if (xQueueReceive(g_log_queue, &evt, portMAX_DELAY) == pdTRUE) {
 
             if (evt > 0 && evt < LOG_EVT_MAX) {
                 const char* msg = LOG_EVENT_MSG[evt];
-                write_system_log(TAG, msg);
-                ESP_LOGI(TAG, "%s", msg);
+                LOGI(TAG, "%s", msg);
+                //ESP_LOGI(TAG, "%s", msg);
             } else {
                 //write_system_log(TAG, "Evento de log %d inválido", evt);
-                ESP_LOGI(TAG, "Evento %d inválido", evt);
+                LOGI(TAG, "Evento %d inválido", evt);
             }
         }
     }
@@ -178,6 +178,7 @@ void write_system_log_new(log_level_t level, const char* tag, const char* format
 
 
 //ver de eliminarla después de probar la nueva versión con macros, para evitar confusiones. O dejarla pero marcarla como deprecated o algo así.
+/*
 void write_system_log(const char* tag, const char* message) {
     xSemaphoreTake(log_mutex, portMAX_DELAY);
     struct stat st;
@@ -218,6 +219,7 @@ void write_system_log(const char* tag, const char* message) {
 void write_system_log(const char* tag, const std::string& message) { //override para std::string
     write_system_log(tag, message.c_str());
 }
+*/
 
 void clear_all_logs() {
     xSemaphoreTake(log_mutex, portMAX_DELAY);
