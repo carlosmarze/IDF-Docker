@@ -26,6 +26,9 @@ static const char *TAG = "MQTT_TASK";
 esp_mqtt_client_handle_t client = nullptr;
 static bool mqtt_initialized = false;
 
+static char mqtt_last_payload[MQTT_MAX_PAYLOAD];
+static int  mqtt_last_len = 0;
+
 static TaskHandle_t mqtt_wd_handle = nullptr;
 static SemaphoreHandle_t mqtt_mutex = nullptr;
 
@@ -42,15 +45,20 @@ void generar_topico_mqtt(const char* tipo, int id, char* topic_out, size_t max_l
 
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
-    log_event_t levt; //nro de evento a loggear en la cola global del logger
-    bool log_event = false; // Si el evento es relevante para loggear (ej: desconexiones, conexiones, etc.)
+    //log_event_t levt; //nro de evento a loggear en la cola global del logger
+    //bool log_event = false; // Si el evento es relevante para loggear (ej: desconexiones, conexiones, etc.)
+    // Verificar stack disponible
+    UBaseType_t stack_free = uxTaskGetStackHighWaterMark(NULL);
+    if (stack_free < 1024) {
+        ESP_LOGW(TAG, "Stack bajo en handler: %u bytes", stack_free);
+    }
 
     switch (event->event_id) {
 
         case MQTT_EVENT_CONNECTED: {
-            //write_system_log("MQTT", "MQTT conectado");
-            levt = LOG_EVT_MQTT_CONNECTED;
-            log_event = true;
+            //LOGI("MQTT", "MQTT conectado");
+            //levt = LOG_EVT_MQTT_CONNECTED;
+            //log_event = true;
             //ESP_LOGI(TAG, "MQTT conectado");
             mqttconnStatus = true;
 
@@ -58,7 +66,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
             generar_topico_mqtt("Q", SensorID, sub_topic, sizeof(sub_topic));
             esp_mqtt_client_subscribe(client, sub_topic, 0);
 
-            LOGI("MQTT", "Suscrito a %s", sub_topic);
+            LOGI(TAG, "Conectado. Pedida suscripcion a %s", sub_topic);
             break;
         }
         case MQTT_EVENT_SUBSCRIBED: {
@@ -73,49 +81,64 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
         }
 
         case MQTT_EVENT_DISCONNECTED: {
-            //write_system_log("MQTT", "MQTT desconectado");
-            levt = LOG_EVT_MQTT_DISCONNECTED;
-            log_event = true;
+            LOGE(TAG, "MQTT desconectado");
+            //levt = LOG_EVT_MQTT_DISCONNECTED;
+            //log_event = true;
             mqttconnStatus = false;
             break;
         }
         case MQTT_EVENT_DATA: {
             //write_system_log("MQTT", "MQTT data recibida");
-            levt = LOG_EVT_MQTT_DATA;
-            log_event = true;
+            //levt = LOG_EVT_MQTT_DATA;
+            //log_event = true;
 
             // Guardamos payload para que lo use el procesador de comandos
-            events_set_mqtt_payload(event->data, event->data_len);
+            //events_set_mqtt_payload(event->data, event->data_len);
+            if (event->data_len >= MQTT_MAX_PAYLOAD)
+                event->data_len = MQTT_MAX_PAYLOAD - 1;
 
+            memcpy(mqtt_last_payload, event->data, event->data_len);
+            mqtt_last_payload[event->data_len] = '\0';
+            mqtt_last_len = event->data_len;
+            //process_commands(
+              //  CMD_SRC_MQTT,
+                //events_get_mqtt_payload(),
+                // ' ',
+                //=',
+                // -1
+            //);
+            ESP_LOGI(TAG, "Stack libre en mqtt pre proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
             process_commands(
                 CMD_SRC_MQTT,
-                events_get_mqtt_payload(),
+                mqtt_last_payload,
                 ' ',
                 '=',
                 -1
             );
+            ESP_LOGI(TAG, "Stack libre en mqtt post proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
             break;
         }
         case MQTT_EVENT_ERROR:
         {
+            LOGE(TAG, "MQTT error");
             //write_system_log("MQTT", "MQTT error");
-            levt = LOG_EVT_MQTT_ERROR;
-            log_event = true;
+            //levt = LOG_EVT_MQTT_ERROR;
+            //log_event = true;
             break;
         }
         default:
         {
-            LOGW("MQTT", "Evento MQTT desconocido id=%d", event->event_id);
+            LOGW(TAG, "Evento MQTT desconocido id=%d", event->event_id);
             break;
         }
 
     }//fin del switch
 
-    if (log_event) {
+    //if (log_event) {
         //write_system_log(TAG, log_msg.c_str());
-        xQueueSend(g_log_queue, &levt, portMAX_DELAY);
+        //xQueueSend(g_log_queue, &levt, portMAX_DELAY);
         //ESP_LOGI(TAG, "%s", log_msg.c_str()); 
-    }
+    //}
 
     return ESP_OK;
 }

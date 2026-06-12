@@ -151,6 +151,7 @@ void http_test_task(void *pvParameters) {
                     //ESP_LOGI("MAIN_HTTP", "Comandos web detectados: '%s'", cmd_str.c_str());
 
                     // Ejecutar comandos usando el parser universal
+                    ESP_LOGI(TAG, "Stack libre en web pre proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
                     process_commands(
                         CMD_SRC_UART,   // origen
                         cmd_str,       // línea completa con comandos
@@ -158,6 +159,7 @@ void http_test_task(void *pvParameters) {
                         0,             // auto-detectar separador 2
                         -1             // sin client_fd
                     );
+                    ESP_LOGI(TAG, "Stack libre en web post proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
                     //borramos field8 para que no quede el comando pegado en el mensaje de estado siguiente
                     strcpy(mensajeWrite.field_data8,"");
                     ESP_LOGI(TAG, "Borrando field8");
@@ -175,7 +177,10 @@ void http_test_task(void *pvParameters) {
         // --- LÓGICA PARA EL update (Cada 60min) ---
         if (first_run || (current_time - last_updt_time) >= pdMS_TO_TICKS(interval_updt)) {
             // tiremos un status para que quede en log una vez por hora
+        }
+            ESP_LOGI(TAG, "Stack libre en test pre proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
             process_commands(CMD_SRC_UART, "status", ' ', ',');
+            ESP_LOGI(TAG, "Stack libre en test post proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
             //tambien un chequeo OTA
             first_run = false;
             last_updt_time = current_time;
@@ -207,10 +212,10 @@ void http_test_task(void *pvParameters) {
             //log_msg = "comando generado: " + cmd_ota_str;
             //write_system_log(TAG, log_msg.c_str());
             LOGI(TAG, "comando generado: %s", cmd_ota_str.c_str());
-            
+            ESP_LOGI(TAG, "Stack libre en test pre proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
            // ESP_LOGI(TAG, "comando generado: %s", cmd_ota_str.c_str());
             process_commands(CMD_SRC_UART, cmd_ota_str.c_str(), ' ', ',');
-            
+            ESP_LOGI(TAG, "Stack libre en test post proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
             
         }
 

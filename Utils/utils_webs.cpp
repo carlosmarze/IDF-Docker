@@ -499,13 +499,14 @@ static esp_err_t cmd_handler(httpd_req_t *req)
     printf("Query a comando: %s\n", query);
     //process_commands(dispatcher,CMD_SRC_WEB, "ota,server=http://server/update.bin,reboot=no,chunk=2048", ' ', ',');
     // process_commands(dispatcher, CMD_SRC_WEB,"SetSSID=missid SetWifiPass='esta es mipass' set_led=On", ' ', '=');
+    ESP_LOGI(TAG, "Stack libre en web pre proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
     if (!extendido) { //cmd
         process_commands( CMD_SRC_WEB, query, ' ', '=', fd);
     }
     else { //cmdx
         process_commands( CMD_SRC_WEB, query, ' ', ',', fd);
     }
-  
+    ESP_LOGI(TAG, "Stack libre en web post proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
 
     /*---------------------------------------------------------
      * 6. Responder al cliente
@@ -547,6 +548,7 @@ esp_err_t ws_handler(httpd_req_t *req) {
             int fd = httpd_req_to_sockfd(req); // <--- CAPTURAMOS EL SOCKET ID
             char* data = (char*)buf;
             // Enviamos al procesador incluyendo el FD para que sepa a quién responder
+            ESP_LOGI(TAG, "Stack libre en ws pre proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
             if (strncmp(data, "X:", 2) == 0) {
                 // Formato CMDX: ota, server=http://..., reboot=yes
                 // Separador 1: ',' (entre comandos/args)
@@ -558,6 +560,7 @@ esp_err_t ws_handler(httpd_req_t *req) {
                 // Separador 2: '=' (clave=valor)
                 process_commands(CMD_SRC_WEB, std::string(data), ' ', '=', fd);
             }
+            ESP_LOGI(TAG, "Stack libre en ws post proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
         }
         free(buf);
     }

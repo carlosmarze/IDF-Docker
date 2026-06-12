@@ -26,7 +26,7 @@ static inline std::string trim(const std::string &s) {
 void process_commands(cmd_source_t src, const std::string &line, char sep1, char sep2, int client_fd) {
       
     //printf("Process_commands: Línea cruda: '%s'\n", line.c_str());
-
+    ESP_LOGI(TAG, "Stack libre en proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
     auto tokens = parse_lineX(line);
 
     if (tokens.empty()) {
