@@ -138,6 +138,7 @@ void service_starter_task(void *pvParameters)
     //static bool first_run_done = false;
     static bool web_started = false;
     static bool aux_tasks_started = false;
+    static bool web_tasks_started = false;
 
     while (1) {
 
@@ -154,6 +155,16 @@ void service_starter_task(void *pvParameters)
         if (!mqtt_is_initialized()) {
             ESP_LOGI("SERVICE", "WiFi OK. Arrancando MQTT...");
             mqtt_app_start();
+        }
+        
+        if (!web_tasks_started) {
+            xTaskCreate(webserver_task,
+                "webserver_task",
+                8192,      // stack
+                NULL,      // parámetro
+                5,         // prioridad
+                NULL );     // handle opcional
+            web_tasks_started = true;
         }
 
         if (!web_started) {

@@ -29,6 +29,8 @@
 #include "utils_cmd_processor.h"
 #include "utils_logger.h"
 #include "utils_events.h"
+#include "utils_config.h" // Para g_ota_en_progreso
+#include "utils_wifi.h" // Para funciones de Wi-Fi
 
 //extern CommandDispatcher dispatcher;
 
@@ -240,23 +242,86 @@ static esp_err_t upload_form_handler(httpd_req_t *req);
 
 httpd_handle_t global_webserver_handle = NULL;
 
+void webserver_task(void *arg)
+{
+    while (true) {
+
+        // Esperar WiFi conectado
+        xEventGroupWaitBits(
+            s_wifi_event_group,
+            WIFI_CONNECTED_BIT,
+            pdFALSE, pdFALSE,
+            portMAX_DELAY
+        );
+
+        ESP_LOGI("WEBSRV", "WiFi listo, iniciando servidor...");
+        start_webserver(global_dispatcher_ptr);
+
+        // Esperar caída del WiFi
+        xEventGroupWaitBits(
+            s_wifi_event_group,
+            WIFI_FAIL_BIT,
+            pdFALSE, pdFALSE,
+            portMAX_DELAY
+        );
+
+        ESP_LOGW("WEBSRV", "WiFi caído, deteniendo servidor...");
+        stop_webserver();
+
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
+
+
 bool server_running() {
     return global_webserver_handle != NULL;
 }
 
-void stop_webserver() {
+void stop_webserverOLD() {
     if (global_webserver_handle) {
         httpd_stop(global_webserver_handle);
         global_webserver_handle = NULL;
     }
 }
 
+void stop_webserver()
+{
+    if (global_webserver_handle == NULL) {
+        LOGW(TAG, "Servidor HTTP ya estaba detenido");
+        return;
+    }
+
+    LOGI(TAG, "Deteniendo servidor HTTP...");
+
+    esp_err_t err = httpd_stop(server);
+
+    if (err == ESP_OK) {
+        LOGI(TAG, "Servidor HTTP detenido correctamente");
+        global_webserver_handle = NULL;
+    } else {
+        LOGE(TAG, "Error al detener servidor HTTP: %s", esp_err_to_name(err));
+    }
+
+    server = NULL;
+}
+
+
+void restart_webserver(CommandDispatcher* disp_ptr)
+{
+    ESP_LOGW(TAG, "Reiniciando servidor HTTP...");
+
+    stop_webserver();
+    vTaskDelay(pdMS_TO_TICKS(200));   // pequeña pausa para liberar sockets
+
+    start_webserver(disp_ptr);
+}
 
 
 void start_webserver(CommandDispatcher* disp_ptr) {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     global_webserver_handle = server;
-
+    
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.stack_size = 4096;        // WebSocket seguro
     config.lru_purge_enable = true; // Cierra conexiones viejas si se llena
     //Keep alive settings
     config.keep_alive_enable = true;
@@ -382,9 +447,9 @@ void start_webserver(CommandDispatcher* disp_ptr) {
         httpd_register_uri_handler(server, &uri_root); // /* debe ir al final para que no pise a los otros 
         
 
-        ESP_LOGI(TAG, "Servidor HTTP iniciado en puerto %d", config.server_port);
+        LOGI(TAG, "Servidor HTTP iniciado en puerto %d", config.server_port);
     } else {
-        ESP_LOGE(TAG, "Error al iniciar servidor HTTP");
+        LOGE(TAG, "Error al iniciar servidor HTTP");
     }
 }
 

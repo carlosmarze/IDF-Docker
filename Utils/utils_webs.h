@@ -13,6 +13,7 @@
 // no te preocupes por los detalles ahora, solo necesito saber que existe".
 class CommandDispatcher;
 // Función para iniciar el servidor web
+void webserver_task(void *arg);
 void start_webserver(CommandDispatcher* disp_ptr);
 void enviar_respuesta_async(httpd_handle_t server, int fd, const char* msg);
 // Función para enviar desde cualquier comando a TODOS los websockets conectados
