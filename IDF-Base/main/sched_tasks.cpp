@@ -13,6 +13,7 @@
 #include "utils_cmd_processor.h"
 #include "utils_config.h"
 #include "utils_logger.h"
+#include "utils_files.h"
 #include "MisVariablesProyecto.h"
 
 static const char* TAG = "SCHED_TASKS";
@@ -149,6 +150,7 @@ void task_3600_updt()
     //std::string log_msg;
 
     process_commands(CMD_SRC_UART, "status", ' ', ',');
+    print_littlefs_usage();
 
     std::string url_ota = urlUpdateDef;
     url_ota += "?VERSION=";

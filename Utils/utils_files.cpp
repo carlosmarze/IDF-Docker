@@ -6,7 +6,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "utils_files.h" // Incluimos nuestro propio header
 #include "esp_event.h"
 #include "nvs_flash.h"
 #include "utils_webs.h"
@@ -41,4 +40,20 @@ void littlefs_init() {
     }
 
     ESP_LOGI(TAG, "LittleFS montado correctamente.");
+}
+
+void print_littlefs_usage()
+{
+    size_t total = 0, used = 0;
+
+    esp_err_t err = esp_littlefs_info("storage", &total, &used);
+
+    if (err != ESP_OK) {
+        LOGE("FS", "Error obteniendo info LittleFS (%s)", esp_err_to_name(err));
+        return;
+    }
+
+    LOGI("FS", "LittleFS total: %u bytes", total);
+    LOGI("FS", "LittleFS usado: %u bytes", used);
+    LOGI("FS", "LittleFS libre: %u bytes", total - used);
 }

@@ -5,7 +5,7 @@
 
 // Definiciones de rutas y tamaños
 #define MAIN_LOG      MOUNT_POINT "/log.txt"
-#define MAX_LOG_SIZE  (10 * 1024) 
+#define MAX_LOG_SIZE  (20 * 1024) 
 #define MAX_FILES     3 
 
 // --- BLOQUE PARA C Y C++ ---

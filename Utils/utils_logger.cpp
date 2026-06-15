@@ -177,49 +177,6 @@ void write_system_log_new(log_level_t level, const char* tag, const char* format
 
 
 
-//ver de eliminarla después de probar la nueva versión con macros, para evitar confusiones. O dejarla pero marcarla como deprecated o algo así.
-/*
-void write_system_log(const char* tag, const char* message) {
-    xSemaphoreTake(log_mutex, portMAX_DELAY);
-    struct stat st;
-    // 1. Control de rotación
-    if (stat(MAIN_LOG, &st) == 0 && st.st_size >= MAX_LOG_SIZE) {
-        rotate_logs();
-    }
-
-    // 2. Abrir en modo append
-    FILE* f = fopen(MAIN_LOG, "a");
-    if (f == NULL) return;
-
-    // 3. Timestamp inteligente
-    time_t now;
-    struct tm timeinfo;
-    time(&now);
-    localtime_r(&now, &timeinfo);
-    
-    char timestamp[32];
-    // Si el año es menor a 2020, usamos el tiempo desde el arranque (uptime)
-    if (timeinfo.tm_year < (2020 - 1900)) { 
-        // esp_timer_get_time() devuelve microsegundos desde el boot, es más preciso
-        snprintf(timestamp, sizeof(timestamp), "UP:%llds", esp_timer_get_time() / 1000000);
-    } else {
-        strftime(timestamp, sizeof(timestamp), "%d/%m %H:%M:%S", &timeinfo);
-    }
-
-    // 4. Escritura
-    fprintf(f, "[%s] [%s] %s\n", timestamp, tag, message);
-
-    // 5. BLINDAJE: Forzar que los datos salgan de la RAM a la Flash
-    fflush(f); 
-    // fsync(fileno(f)); // Opcional: asegura la integridad física del sistema de archivos
-    
-    fclose(f);
-    xSemaphoreGive(log_mutex);
-}
-void write_system_log(const char* tag, const std::string& message) { //override para std::string
-    write_system_log(tag, message.c_str());
-}
-*/
 
 void clear_all_logs() {
     xSemaphoreTake(log_mutex, portMAX_DELAY);

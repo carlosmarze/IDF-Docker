@@ -9,7 +9,7 @@
     // 
     #define MOUNT_POINT "/fs"
     void littlefs_init();
- 
+    void print_littlefs_usage();
 
     #ifdef __cplusplus
         }
