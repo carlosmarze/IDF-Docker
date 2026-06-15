@@ -25,7 +25,7 @@ typedef enum {
 } log_level_t;
 
 // Buffer compartido para formateo
-#define LOG_BUFFER_SIZE 256
+#define LOG_BUFFER_SIZE 512
 // Macros helper para facilitar el uso
 #define LOGD(tag, format, ...) write_system_log_new(LOG_LEVEL_DEBUG, tag, format, ##__VA_ARGS__)
 #define LOGI(tag, format, ...) write_system_log_new(LOG_LEVEL_INFO, tag, format, ##__VA_ARGS__)

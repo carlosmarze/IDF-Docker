@@ -8,6 +8,8 @@
 #include "esp_log.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
+#include "utils_files.h" // Incluimos nuestro propio header
+#include "utils_logger.h" // Para logging
 #include "utils_webs.h"
 
 static const char *TAG = "FS_TASK";
