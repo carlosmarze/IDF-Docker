@@ -68,6 +68,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
             char sub_topic[MAX_TOPIC_LENGTH];
             generar_topico_mqtt("Q", SensorID, sub_topic, sizeof(sub_topic));
             esp_mqtt_client_subscribe(client, sub_topic, 0);
+            generar_topico_mqtt("A", SensorID, sub_topic, sizeof(sub_topic));
             publish_mqtt(sub_topic, "Reconexion", 0, 0); // Publicamos un mensaje de "online" al conectar para que el sistema sepa que estamos activos (puede ser útil para monitoreo o para que otros sistemas reaccionen a nuestra conexión)
             LOGI(TAG, "Conectado. Pedida suscripcion a %s", sub_topic);
             break;
