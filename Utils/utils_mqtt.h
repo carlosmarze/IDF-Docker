@@ -17,7 +17,6 @@
     extern char* mqtt_ca_cert;   // buffer dinámico cargado desde FS
 
     void mqtt_app_start(void); 
-    void mqtt_app_startHIVE(void);
     // 🚨 NUEVA: Función para detener y destruir el cliente
     void mqtt_app_stop(void);
     void publish_mqtt(const char* topic, const char* data, int qos, int retain);

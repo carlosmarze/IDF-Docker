@@ -167,11 +167,7 @@ static void ip_event_handler(void* arg,
 
         // Si querés iniciar MQTT automáticamente:
         if (!g_ota_en_progreso) {
-            #ifdef MQTTHIVE
-                mqtt_app_startHIVE();
-            #else
-                mqtt_app_start();
-            #endif
+            //mqtt_app_start();
         }
 
         break;

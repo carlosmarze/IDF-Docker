@@ -129,6 +129,11 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
             //log_event = true;
             break;
         }
+        case MQTT_EVENT_BEFORE_CONNECT:
+        {
+            LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
+            break;
+        }
         default:
         {
             LOGW(TAG, "Evento MQTT desconocido id=%d", event->event_id);
@@ -233,25 +238,27 @@ void mqtt_watchdog_task(void *pvParameters) {
     return buf;
 }
 
+
 char* mqtt_ca_cert = NULL;
-void mqtt_app_startHIVE(void) {
+void mqtt_app_start_secure(void) {
     
+    LOGI("MQTT", "Iniciando MQTT sobre SSL con HiveMQ Cloud Host %s User %s...", MQTT_HIVEMQ_HOST, MQTT_HIVEMQ_USERNAME);
     if (mqtt_initialized) return;
 
     // 1. Cargar certificado desde LittleFS
-    mqtt_ca_cert = load_cert_from_fs("/" MQTT_HIVEMQ_ROOT_CERT_PEM);
+    mqtt_ca_cert = load_cert_from_fs(MQTT_HIVEMQ_ROOT_CERT_PEM); // /fs/certs/hivemq_ca.pem
     if (!mqtt_ca_cert) {
-        ESP_LOGE("MQTT", "No se pudo cargar CA desde FS");
+        LOGE("MQTT", "No se pudo cargar CA desde FS");
         return;
     }
 
-    ESP_LOGI("MQTT", "Certificado CA cargado correctamente");
+    LOGI("MQTT", "Certificado CA cargado correctamente");
 
     // 2. Configurar MQTT con TLS
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
             .address = {
-                .hostname = MQTT_BROKER_HOST,
+                .hostname = MQTT_HIVEMQ_HOST,
                 .transport = MQTT_TRANSPORT_OVER_SSL,
                 .port = 8883,
             },
@@ -260,9 +267,9 @@ void mqtt_app_startHIVE(void) {
             },
         },
         .credentials = {
-            .username = MQTT_BROKER_USERNAME,
+            .username = MQTT_HIVEMQ_USERNAME,
             .authentication = {
-                .password = MQTT_BROKER_PASSWORD,
+                .password = MQTT_HIVEMQ_PASSWORD,
             },
         },
     };
@@ -270,13 +277,20 @@ void mqtt_app_startHIVE(void) {
     client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, NULL);
 
+    if (mqtt_mutex) xSemaphoreTake(mqtt_mutex, portMAX_DELAY);
     esp_mqtt_client_start(client);
+    if (mqtt_mutex) xSemaphoreGive(mqtt_mutex);
 
+    if (!mqtt_wd_handle) {
+        xTaskCreate(mqtt_watchdog_task, "mqtt_watchdog", 4096, NULL, 3, &mqtt_wd_handle);
+    }
+    LOGI("MQTT", "MQTT sobre SSL iniciado con HiveMQ Cloud");
     mqtt_initialized = true;
 }
 
 
-void mqtt_app_start(void) {
+void mqtt_app_start_insecure(void) {
+    LOGI("MQTT", "Iniciando MQTT con MyqttHub...");
     if (mqtt_initialized) return;
 
     if (!mqtt_mutex) {
@@ -311,6 +325,17 @@ void mqtt_app_start(void) {
     }
 
     mqtt_initialized = true;
+    LOGI("MQTT", "MQTT iniciado con MyqttHub");
+}
+
+void mqtt_app_start(void) {
+    #ifdef MQTTHIVE
+        LOGI("MQTT", "Iniciando MQTT con HiveMQ Cloud...");
+        mqtt_app_start_secure();
+    #else
+        LOGI("MQTT", "Iniciando MQTT con MyqttHub...");
+        mqtt_app_start_insecure();
+    #endif
 }
 
 void mqtt_app_stop(void) {

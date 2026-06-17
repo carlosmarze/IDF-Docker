@@ -25,9 +25,10 @@
 #define MQTT_HIVEMQ_PORT 8883
 #define MQTT_HIVEMQ_USERNAME "MisESP32-Dev"
 #define MQTT_HIVEMQ_PASSWORD "AnHPt32KDKb5WjDG"
-#define MQTT_HIVEMQ_ROOT_CERT_PEM "certs/hivemq_ca.pem" // Ruta al certificado raíz para HiveMQ Cloud
+#define MQTT_HIVEMQ_ROOT_CERT_PEM MOUNT_POINT "/certs/hivemq_ca.pem" // Ruta al certificado raíz para HiveMQ Cloud
 #define MAX_TOPIC_LENGTH 32 //"miTSESP/K/7001" con 16 andaría bien pero dejamos margen
 #define MQTT_TOPIC_BASE "miTSESP/"
+#define MQTTHIVE 1 // Definir esta macro si queremos usar HiveMQ Cloud como broker MQTT, si no la definimos se usará el broker que tengas configurado en utils_mqtt.cpp (ej: Mosquitto local o en la nube)
 //#define MQTT_TOPICOK "miTSESP/K/"
 //#define MQTT_TOPICA "miTSESP/A/"
 //#define MQTT_SUBSCRIBE "miTSESP/Q/"

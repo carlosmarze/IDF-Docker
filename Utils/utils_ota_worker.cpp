@@ -216,7 +216,7 @@ static void ota_worker_task(void *arg) {
 
             g_ota_en_progreso = false;
             // IMPORTANTE: Si detuvimos el MQTT, hay que volver a arrancarlo
-            mqtt_app_start(); 
+            mqtt_app_start();
         }
         
         LOGI(TAG, "Ciclo OTA terminado. Esperando..."); 
