@@ -150,7 +150,7 @@ void task_3600_updt()
     //std::string log_msg;
 
     process_commands(CMD_SRC_UART, "status", ' ', ',');
-    print_littlefs_usage();
+    //print_littlefs_usage();
 
     std::string url_ota = urlUpdateDef;
     url_ota += "?VERSION=";
