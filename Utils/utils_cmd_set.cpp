@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <ctype.h> // Para isdigit
-
+ #include "esp_littlefs.h"  // Incluye la biblioteca
 
 #include "utils_cmd_set.h"
 #include "utils_cmd_dispatcher.h" //para usar CommandDispatcher
@@ -372,7 +372,7 @@ public:
 
         // 2. Info de WiFi
         wifi_ap_record_t ap_info;
-        static char wifi_info[128]; //La ponemos static para que no consuma stack, solo heap, no la podemos inicializar acá, por eso la linea siguiente
+        static char wifi_info[128];
         strcpy(wifi_info, "Desconectado");
         if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
             esp_netif_ip_info_t ip_info;
@@ -394,26 +394,43 @@ public:
         struct tm timeinfo;
         time(&now);
         localtime_r(&now, &timeinfo);
-        static char strftime_buf[64]; //La ponemos static para que no consuma stack, solo heap
+        static char strftime_buf[64];
         strftime(strftime_buf, sizeof(strftime_buf), "%d/%m/%Y %H:%M:%S", &timeinfo);
 
         // 4. Info MQTT
-        static char mqtt_info[256]; //La ponemos static para que no consuma stack, solo heap
+        static char mqtt_info[256];
         if (!(mqtt_is_initialized())) {
             snprintf(mqtt_info, sizeof(mqtt_info), "MQTT no inicializado");
         } else if (!mqttconnStatus) {
-            snprintf(mqtt_info, sizeof(mqtt_info), "MQTT desconectado");
+            snprintf(mqtt_info, sizeof(mqtt_info), "MQTT desconectado | TLS: %s", 
+                    MqttTLS ? "ON" : "OFF");
         } else {
-            // Generar el tópico al que estás suscripto
-            static char topic[128]; //La ponemos static para que no consuma stack, solo heap
+            static char topic[128];
             generar_topico_mqtt("Q", SensorID, topic, sizeof(topic));
 
             snprintf(mqtt_info, sizeof(mqtt_info),
-                    "MQTT conectado | Suscripto a: %s", topic);
+                    "MQTT conectado | TLS: %s | Suscripto a: %s", 
+                    MqttTLS ? "ON" : "OFF", topic);
         }
 
-        // 5. Construir respuesta final
-        static char output[768]; //La ponemos static para que no consuma stack, solo heap
+        // 5. Info LittleFS
+        static char fs_info[128];
+        size_t total_bytes = 0, used_bytes = 0;
+        esp_err_t fs_ret = esp_littlefs_info("storage", &total_bytes, &used_bytes);
+        
+        if (fs_ret == ESP_OK) {
+            size_t free_bytes = total_bytes - used_bytes;
+            float used_percent = (total_bytes > 0) ? (used_bytes * 100.0f / total_bytes) : 0.0f;
+            
+            snprintf(fs_info, sizeof(fs_info), 
+                    "Total: %u KB | Usado: %u KB (%.1f%%) | Libre: %u KB",
+                    total_bytes / 1024, used_bytes / 1024, used_percent, free_bytes / 1024);
+        } else {
+            snprintf(fs_info, sizeof(fs_info), "Error al obtener info: %s", esp_err_to_name(fs_ret));
+        }
+
+        // 6. Construir respuesta final
+        static char output[1024]; // Aumentado de 768 a 1024 para acomodar la nueva info
         int pos = 0;
         pos += snprintf(output + pos, sizeof(output) - pos, "\n--- SYSTEM STATUS ---\n");
         pos += snprintf(output + pos, sizeof(output) - pos, "  Version   : %s\n", version_info);
@@ -423,6 +440,7 @@ public:
                         seconds / 86400, (seconds / 3600) % 24, (seconds / 60) % 60, seconds % 60);
         pos += snprintf(output + pos, sizeof(output) - pos, "  WiFi      : %s\n", wifi_info);
         pos += snprintf(output + pos, sizeof(output) - pos, "  MQTT      : %s\n", mqtt_info);
+        pos += snprintf(output + pos, sizeof(output) - pos, "  LittleFS  : %s\n", fs_info);
         pos += snprintf(output + pos, sizeof(output) - pos, "  Free Heap : %u KB\n", free_heap / 1024);
         pos += snprintf(output + pos, sizeof(output) - pos, "  Reset Rsn : %d\n", (int)esp_reset_reason());
         pos += snprintf(output + pos, sizeof(output) - pos, "---------------------\n");
