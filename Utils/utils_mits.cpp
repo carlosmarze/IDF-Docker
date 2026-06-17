@@ -39,10 +39,10 @@ void miTS_init()
     strcpy(mensajeWrite.field_name[6],"field7");
     strcpy(mensajeWrite.field_name[7],"field8");
 
-    strcpy(mensajeWrite.esquema, ESQUEMA);
+    strcpy(mensajeWrite.esquema, esquema);
     strcpy(mensajeWrite.write_api_key, WRITE_API_KEY);
 
-    mensajeRead.sensor_id = SENSORID;
+    mensajeRead.sensor_id = SensorID;
     strcpy(mensajeRead.read_api_key, READ_API_KEY);
 }
 

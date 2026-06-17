@@ -14,6 +14,7 @@
 // Definición real de las variables
 int SensorID = 0;
 bool MqttTLS = false; // Indica si se debe usar MQTT sobre TLS (ej: HiveMQ Cloud) o MQTT sin TLS (ej: Mosquitto local o en la nube sin SSL)
+char esquema[10] = "ESP32IDF"; // Esquema de datos para miTS, se setea en config.txt como variable si se quisiera usar el mismo firmware para distintos esquemas.
 std::string g_pending_ssid = "";
 std::string g_pending_pass = "";
 app_config_t g_app_config = {}; // También inicializamos la estructura
@@ -36,6 +37,12 @@ static bool aplicar_config_linea_directo(const char* linea) {
     if (strncmp(linea, "setmtqtttls=", 12) == 0) {
         MqttTLS = (strcmp(linea + 12, "true") == 0);
         LOGI(TAG_CONFIG, "MqttTLS seteado a %s", MqttTLS ? "true" : "false");
+        return true;
+    }
+    if (strncmp(linea, "setesquema=", 11) == 0) {
+        strncpy(esquema, linea + 11, sizeof(esquema) - 1);
+        esquema[sizeof(esquema) - 1] = '\0';
+        LOGI(TAG_CONFIG, "esquema seteado a %s", esquema);
         return true;
     }
 
