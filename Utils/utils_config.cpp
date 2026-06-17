@@ -13,6 +13,7 @@
 // Inicialización de las variables globales declardas en el .h
 // Definición real de las variables
 int SensorID = 0;
+bool MqttTLS = false; // Indica si se debe usar MQTT sobre TLS (ej: HiveMQ Cloud) o MQTT sin TLS (ej: Mosquitto local o en la nube sin SSL)
 std::string g_pending_ssid = "";
 std::string g_pending_pass = "";
 app_config_t g_app_config = {}; // También inicializamos la estructura
@@ -29,8 +30,15 @@ static const char *TAG_CONFIG = "CONFIG";
 static bool aplicar_config_linea_directo(const char* linea) {
     if (strncmp(linea, "setsensorid=", 12) == 0) {
         SensorID = atoi(linea + 12);
+        LOGI(TAG_CONFIG, "SensorID seteado a %d", SensorID);
         return true;
     }
+    if (strncmp(linea, "setmtqtttls=", 12) == 0) {
+        MqttTLS = (strcmp(linea + 12, "true") == 0);
+        LOGI(TAG_CONFIG, "MqttTLS seteado a %s", MqttTLS ? "true" : "false");
+        return true;
+    }
+
     // otros comandos de config que solo setean variables
     //setuser
     //setpass

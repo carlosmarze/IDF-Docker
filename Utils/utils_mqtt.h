@@ -31,3 +31,16 @@
     #endif
 
 #endif // MQTT_CLIENT_H
+/*
+Para trabajar con ESP-IDF (a diferencia de Arduino IDE), el manejo de los certificados es más directo y no necesitas ejecutar scripts de Python para "subirlos" al flash de la forma en que lo hace Arduino.
+
+En ESP-IDF, el certificado se incluye directamente en tu código fuente como un arreglo constante, permitiendo que el sistema de archivos o el binario de la aplicación lo maneje de forma segura.
+
+Aquí tienes los pasos para conectar tu ESP32 con ESP-IDF a HiveMQ Cloud:
+
+1. Descarga el Certificado Root CA
+HiveMQ Cloud utiliza certificados emitidos por Let's Encrypt. Necesitas el certificado raíz (Root CA) ISRG Root X1.
+
+Descárgalo directamente desde el sitio oficial de Let's Encrypt. Guarda el archivo como "hivemq_ca.pem".
+https://letsencrypt.org/certs/isrgrootx1.pem
+*/

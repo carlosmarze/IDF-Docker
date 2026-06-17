@@ -329,13 +329,14 @@ void mqtt_app_start_insecure(void) {
 }
 
 void mqtt_app_start(void) {
-    #ifdef MQTTHIVE
-        LOGI("MQTT", "Iniciando MQTT con HiveMQ Cloud...");
+    if(MqttTLS) {
+        LOGI("MQTT", "Iniciando MQTT TLS...");
         mqtt_app_start_secure();
-    #else
-        LOGI("MQTT", "Iniciando MQTT con MyqttHub...");
+    } else {
+        LOGI("MQTT", "Iniciando MQTT sin TLS...");
         mqtt_app_start_insecure();
-    #endif
+    }
+    
 }
 
 void mqtt_app_stop(void) {

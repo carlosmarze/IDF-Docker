@@ -28,7 +28,7 @@
 #define MQTT_HIVEMQ_ROOT_CERT_PEM MOUNT_POINT "/certs/hivemq_ca.pem" // Ruta al certificado raíz para HiveMQ Cloud
 #define MAX_TOPIC_LENGTH 32 //"miTSESP/K/7001" con 16 andaría bien pero dejamos margen
 #define MQTT_TOPIC_BASE "miTSESP/"
-#define MQTTHIVE 1 // Definir esta macro si queremos usar HiveMQ Cloud como broker MQTT, si no la definimos se usará el broker que tengas configurado en utils_mqtt.cpp (ej: Mosquitto local o en la nube)
+//#define MQTTHIVE 1 // ahora es variable en config.txt Definir esta macro si queremos usar HiveMQ Cloud como broker MQTT, si no la definimos se usará el broker que tengas configurado en utils_mqtt.cpp (ej: Mosquitto local o en la nube)
 //#define MQTT_TOPICOK "miTSESP/K/"
 //#define MQTT_TOPICA "miTSESP/A/"
 //#define MQTT_SUBSCRIBE "miTSESP/Q/"
@@ -49,6 +49,7 @@ extern std::string g_pending_pass;
 //extern bool g_manual_wifi_connect;
 //extern bool g_ota_en_progreso; // Variable global OTA
 extern int SensorID; // Identificador único del sensor lo definiremos en main.cpp o donde le pongamos el valor (leido de file seguramente)
+extern bool MqttTLS;
 bool cargar_config_desde_file(CommandDispatcher* disp); // Movida aquí fuera
 bool cargar_config_desde_file_directo() ; // Carga directa sin pasar por el dispatcher, para usar en app_main antes de iniciar el dispatcher
 extern bool first_run_done; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
