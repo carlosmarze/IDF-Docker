@@ -31,6 +31,9 @@ static int  mqtt_last_len = 0;
 
 static TaskHandle_t mqtt_wd_handle = nullptr;
 static SemaphoreHandle_t mqtt_mutex = nullptr;
+//Para MQTT sobre SSL (ej: HiveMQ Cloud)
+
+//char* mqtt_ca_cert = NULL;   // definición real del buffer dinámico para el certificado raíz, que se cargará desde FS
 
 //chequeo externo de status MQTT para otras tareas (ej: watchdog)
 bool mqtt_is_initialized(void) {
@@ -202,6 +205,74 @@ void mqtt_watchdog_task(void *pvParameters) {
         esp_mqtt_client_reconnect(client);
         if (mqtt_mutex) xSemaphoreGive(mqtt_mutex);
     }
+}
+
+ char* load_cert_from_fs(const char* path)
+{
+    FILE* f = fopen(path, "r");
+    if (!f) {
+        ESP_LOGE("MQTT", "No se pudo abrir certificado: %s", path);
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char* buf = (char*)malloc(size + 1);
+    if (!buf) {
+        ESP_LOGE("MQTT", "No hay memoria para certificado (%ld bytes)", size);
+        fclose(f);
+        return NULL;
+    }
+
+    fread(buf, 1, size, f);
+    buf[size] = '\0';  // PEM debe terminar en null
+    fclose(f);
+
+    return buf;
+}
+
+char* mqtt_ca_cert = NULL;
+void mqtt_app_startHIVE(void) {
+    
+    if (mqtt_initialized) return;
+
+    // 1. Cargar certificado desde LittleFS
+    mqtt_ca_cert = load_cert_from_fs("/" MQTT_HIVEMQ_ROOT_CERT_PEM);
+    if (!mqtt_ca_cert) {
+        ESP_LOGE("MQTT", "No se pudo cargar CA desde FS");
+        return;
+    }
+
+    ESP_LOGI("MQTT", "Certificado CA cargado correctamente");
+
+    // 2. Configurar MQTT con TLS
+    esp_mqtt_client_config_t mqtt_cfg = {
+        .broker = {
+            .address = {
+                .hostname = MQTT_BROKER_HOST,
+                .transport = MQTT_TRANSPORT_OVER_SSL,
+                .port = 8883,
+            },
+            .verification = {
+                .certificate = mqtt_ca_cert,   // <--- ACÁ USAMOS EL CERTIFICADO DEL FS
+            },
+        },
+        .credentials = {
+            .username = MQTT_BROKER_USERNAME,
+            .authentication = {
+                .password = MQTT_BROKER_PASSWORD,
+            },
+        },
+    };
+
+    client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, NULL);
+
+    esp_mqtt_client_start(client);
+
+    mqtt_initialized = true;
 }
 
 

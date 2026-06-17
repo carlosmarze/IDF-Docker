@@ -21,7 +21,11 @@
 #define MQTT_BROKER_USERNAME "MisESP8266-Dev"
 #define MQTT_BROKER_PASSWORD "AnHPt32KDKb5WjDG"
 #define MQTT_BROKER_PORT 1883 // O el puerto específico que uses (ej: 8080, 8883)
-
+#define MQTT_HIVEMQ_HOST "ce6972bb89804ca2a0522c31a4f3111d.s2.eu.hivemq.cloud"
+#define MQTT_HIVEMQ_PORT 8883
+#define MQTT_HIVEMQ_USERNAME "MisESP32-Dev"
+#define MQTT_HIVEMQ_PASSWORD "AnHPt32KDKb5WjDG"
+#define MQTT_HIVEMQ_ROOT_CERT_PEM "certs/hivemq_ca.pem" // Ruta al certificado raíz para HiveMQ Cloud
 #define MAX_TOPIC_LENGTH 32 //"miTSESP/K/7001" con 16 andaría bien pero dejamos margen
 #define MQTT_TOPIC_BASE "miTSESP/"
 //#define MQTT_TOPICOK "miTSESP/K/"

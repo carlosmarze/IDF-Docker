@@ -11,8 +11,13 @@
  
     extern bool mqttconnStatus;
     extern esp_mqtt_client_handle_t client;
+    //Root cerirtificate para HiveMQ Cloud (si usas ese broker)
+    //ver en el browser quien es el firmante del certificado del broker, y bajar el certificado raíz correspondiente, lo convertís a PEM si es necesario, y lo incluís en el proyecto (ej: certs/hivemq_ca.pem) para luego usarlo acá. Si usas otro broker, bajate el certificado raíz de ese broker.
+    
+    extern char* mqtt_ca_cert;   // buffer dinámico cargado desde FS
 
     void mqtt_app_start(void); 
+    void mqtt_app_startHIVE(void);
     // 🚨 NUEVA: Función para detener y destruir el cliente
     void mqtt_app_stop(void);
     void publish_mqtt(const char* topic, const char* data, int qos, int retain);

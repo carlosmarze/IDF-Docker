@@ -154,9 +154,13 @@ void service_starter_task(void *pvParameters)
 
         if (!mqtt_is_initialized()) {
             ESP_LOGI("SERVICE", "WiFi OK. Arrancando MQTT...");
-            mqtt_app_start();
+            #ifdef MQTTHIVE
+                mqtt_app_startHIVE();
+            #else
+                mqtt_app_start();
+            #endif
         }
-        
+
         if (!web_tasks_started) {
             xTaskCreate(webserver_task,
                 "webserver_task",

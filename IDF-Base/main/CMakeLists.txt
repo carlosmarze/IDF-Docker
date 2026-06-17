@@ -7,7 +7,8 @@ idf_component_register(
         "main.cpp"
         "sched_tasks.cpp"
         "project_tasks.cpp"
-    INCLUDE_DIRS "."
+        INCLUDE_DIRS "."
+        #EMBED_TXTFILES "certs/hivemq_ca.pem" Lo leemos desde FS, no lo cargamos en el firmware
     
     # AGREGAR ESTA LÍNEA CON TODOS LOS COMPONENTES NECESARIOS
     PRIV_REQUIRES 
