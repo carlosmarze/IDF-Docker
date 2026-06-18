@@ -204,7 +204,7 @@ static void update_web_task(void *param)
     //http://carze.pythonanywhere.com/field/html?api_key=REZAQ4BH81OQP9PZ&SensorID=25	
     //#define urlFilesUpdate "https://carze.pythonanywhere.com/field/html" esto sería urlFilesUpdate
     //std::string get_url3 = std::string("http://") + tsurl + "/field/field8?api_key=" + mensajeRead.read_api_key + "&SensorID=" + std::to_string(mensajeRead.sensor_id);
-    std::string body = http_get(std::string(URL_FILES_UPDATE) + "?api_key=" + READ_API_KEY + "&SensorID=" + std::to_string(SENSORID));
+    std::string body = http_get(std::string(URL_FILES_UPDATE) + "?api_key=" + READ_API_KEY + "&SensorID=" + std::to_string(SensorID));
     //Dnld=css/Control.OSMGeocoder.css Dnld=css/images/geocoder.png Dnld=css/SmartSwitch.css Dnld=index.html Dnld=js/Control.OSMGeocoder.js Dnld=js/Mapa.js Dnld=js/SmartSched.js Dnld=js/SmartSProc.js Dnld=js/SmartSwitch.js Dnld=Mapa.html Dnld=Sched/SchedFile1.txt Dnld=Sched/SchedFile2.txt Dnld=Sched/SchedFileC1.txt Dnld=Sched/SchedFileC2.txt Dnld=Schedule.html
     auto files = parse_dnld_list(body);
 
@@ -219,7 +219,7 @@ static void update_web_task(void *param)
     // 3. Procesar archivos
     for (auto &f : files) {
         //https://carze.pythonanywhere.com/getfile/zip?File=25/Sched/SchedFileC1.txt
-        std::string url = "http://" + std::string(URL_BASE) + "/getfile/zip?File=" + std::to_string(SENSORID) + "/" ;
+        std::string url = "http://" + std::string(URL_BASE) + "/getfile/zip?File=" + std::to_string(SensorID) + "/" ;
         ESP_LOGI(TAG, "Procesando %s%s", url.c_str(), f.c_str());
         process_file(url, f, refresh);
         vTaskDelay(pdMS_TO_TICKS(50));
