@@ -114,7 +114,7 @@ static void ota_worker_task(void *arg) {
         // 1. ESPERAR TRABAJO (Bloqueado aquí hasta que llegue un comando OTA)
         if (xQueueReceive(s_ota_q, &job, portMAX_DELAY) != pdTRUE) continue;
 
-        //g_ota_en_progreso = true; 
+        g_ota_en_progreso = true; 
         // Eliminamos mqtt_app_stop(); <-- Dejamos que MQTT viva hasta que estemos SEGUROS de que hay un binario.
 
         xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
@@ -171,7 +171,7 @@ static void ota_worker_task(void *arg) {
                 }
                 
                 // Si llegamos aquí, ES un binario. Ahora sí, preparamos el sistema:
-                g_ota_en_progreso = true; // <-- Marcamos que hay una OTA en progreso para que otras tareas lo sepan y actúen en consecuencia (ej: no reconectar WiFi, no intentar MQTT, etc)
+                //g_ota_en_progreso = true; // <-- Marcamos que hay una OTA en progreso para que otras tareas lo sepan y actúen en consecuencia (ej: no reconectar WiFi, no intentar MQTT, etc)
                 LOGI(TAG, "Binario detectado. Iniciando escritura ");
                 //write_system_log(TAG, log_msg.c_str());
                 //ESP_LOGI(TAG,  "%s", log_msg.c_str());
