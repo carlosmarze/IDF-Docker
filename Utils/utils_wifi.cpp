@@ -118,7 +118,12 @@ static void wifi_event_handler(void* arg,
             log_event = true;
             wifi_ready = false;
             break;
-
+        case WIFI_EVENT_STA_START:
+            ESP_LOGI(TAG, "WIFI STA_START");
+            break;
+        case WIFI_EVENT_STA_STOP:
+            ESP_LOGI(TAG, "WIFI STA_STOP");
+            break;
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI(TAG, "WiFi STA conectado");
             wifi_ready = true;
