@@ -24,6 +24,28 @@ void get_fecha_hora(char *buffer, size_t max_len) {
         strftime(buffer, max_len, "%d/%m/%Y %H:%M:%S", &timeinfo);
     }
 }
+#include "utils_time.h"
+#include <time.h>
+
+// Buffer estático para devolver siempre un const char*
+//uso: snprintf(mqttmsg, sizeof(mqttmsg),"Sensor %d Firmware %s online (%s)", SensorID, version_info, get_datetime());
+static char datetime_buf[32];
+
+const char* get_datetime()
+{
+    time_t now;
+    time(&now);
+
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    // Formato: 2026-06-18 17:42:10
+    strftime(datetime_buf, sizeof(datetime_buf),
+             "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+    return datetime_buf;
+}
+
 std::string get_current_time() {
     time_t now;
     struct tm timeinfo;

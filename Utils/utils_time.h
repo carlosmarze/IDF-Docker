@@ -13,6 +13,8 @@
  */
 
 void get_fecha_hora(char *buffer, size_t max_len);
+// Devuelve fecha y hora local en formato "YYYY-MM-DD HH:MM:SS", más eficienta que la anterior 
+const char* get_datetime();
 
 static void create_status_page(const char *status_cmd, char *buffer, size_t max_len);
 

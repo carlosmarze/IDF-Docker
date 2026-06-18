@@ -15,6 +15,7 @@
 #include "utils_cmd_processor.h"
 #include "utils_config.h" // Para g_ota_en_progreso
 #include "utils_logger.h" // Para logging
+#include "utils_time.h" // Para get_datetime()
 #include "utils_events.h"
 
 //buffer MQTT
@@ -70,8 +71,10 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
             esp_mqtt_client_subscribe(client, sub_topic, 0);
             
             LOGI(TAG, "Conectado. Pedida suscripcion a %s", sub_topic);
+            char mqttmsg[64];
+            snprintf(mqttmsg, sizeof(mqttmsg), "%s Sensor %d Firmware %s online", get_datetime(), SensorID, version_info);
             generar_topico_mqtt("A", SensorID, sub_topic, sizeof(sub_topic));
-            publish_mqtt(sub_topic, "Reconexion", 0, 0); // Publicamos un mensaje de "online" al conectar para que el sistema sepa que estamos activos (puede ser útil para monitoreo o para que otros sistemas reaccionen a nuestra conexión)
+            publish_mqtt(sub_topic, mqttmsg, 0, 0); // Publicamos un mensaje de "online" al conectar para que el sistema sepa que estamos activos (puede ser útil para monitoreo o para que otros sistemas reaccionen a nuestra conexión)
             break;
         }
         case MQTT_EVENT_SUBSCRIBED: {
@@ -331,6 +334,8 @@ void mqtt_app_start_insecure(void) {
 }
 
 void mqtt_app_start(void) {
+    if (mqtt_initialized) return;
+    
     if(MqttTLS) {
         LOGI("MQTT", "Iniciando MQTT TLS...");
         mqtt_app_start_secure();
