@@ -43,7 +43,7 @@ bool mqtt_is_initialized(void) {
 
 // Función para generar tópicos
 void generar_topico_mqtt(const char* tipo, int id, char* topic_out, size_t max_len) {
-    snprintf(topic_out, max_len, "%s%s/%d", MQTT_TOPIC_BASE, tipo, id);
+    snprintf(topic_out, max_len, "%s%s/%d", mqtttopicbase, tipo, id);
 }
 
 
@@ -247,11 +247,11 @@ void mqtt_watchdog_task(void *pvParameters) {
 char* mqtt_ca_cert = NULL;
 void mqtt_app_start_secure(void) {
     
-    LOGI("MQTT", "Iniciando MQTT sobre SSL con HiveMQ Cloud Host %s User %s...", MQTT_HIVEMQ_HOST, MQTT_HIVEMQ_USERNAME);
+    LOGI("MQTT", "Iniciando MQTT sobre SSL con HiveMQ Cloud Host %s User %s...", mqtthost, mqttuser);
     if (mqtt_initialized) return;
 
     // 1. Cargar certificado desde LittleFS
-    mqtt_ca_cert = load_cert_from_fs(MQTT_HIVEMQ_ROOT_CERT_PEM); // /fs/certs/hivemq_ca.pem
+    mqtt_ca_cert = load_cert_from_fs(mqttcert); // /fs/certs/hivemq_ca.pem
     if (!mqtt_ca_cert) {
         LOGE("MQTT", "No se pudo cargar CA desde FS");
         return;
@@ -263,18 +263,18 @@ void mqtt_app_start_secure(void) {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
             .address = {
-                .hostname = MQTT_HIVEMQ_HOST,
+                .hostname = mqtthost,
                 .transport = MQTT_TRANSPORT_OVER_SSL,
-                .port = 8883,
+                .port = mqttport,
             },
             .verification = {
                 .certificate = mqtt_ca_cert,   // <--- ACÁ USAMOS EL CERTIFICADO DEL FS
             },
         },
         .credentials = {
-            .username = MQTT_HIVEMQ_USERNAME,
+            .username = mqttuser,
             .authentication = {
-                .password = MQTT_HIVEMQ_PASSWORD,
+                .password = mqttpass,
             },
         },
     };
@@ -305,15 +305,15 @@ void mqtt_app_start_insecure(void) {
     const esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
             .address = {
-                .hostname = MQTT_BROKER_HOST,
+                .hostname = mqtthost,
                 .transport = MQTT_TRANSPORT_OVER_TCP,
-                .port = MQTT_BROKER_PORT,
+                .port = mqttport,
             },
         },
         .credentials = {
-            .username = MQTT_BROKER_USERNAME,
+            .username = mqttuser,
             .authentication = {
-                .password = MQTT_BROKER_PASSWORD,
+                .password = mqttpass,
             },
         },
     };

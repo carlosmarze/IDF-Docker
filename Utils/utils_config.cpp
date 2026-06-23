@@ -14,15 +14,24 @@
 // Definición real de las variables
 int SensorID = 0;
 bool MqttTLS = false; // Indica si se debe usar MQTT sobre TLS (ej: HiveMQ Cloud) o MQTT sin TLS (ej: Mosquitto local o en la nube sin SSL)
-char esquema[10] = "ESP32IDF"; // Esquema de datos para miTS, se setea en config.txt como variable si se quisiera usar el mismo firmware para distintos esquemas.
-char WEB_USER[20] = "admin";
-char WEB_PASS[20] = "1234";
+char esquema[16] = "ESP32IDF"; // Esquema de datos para miTS, se setea en config.txt como variable si se quisiera usar el mismo firmware para distintos esquemas.
+char WEB_USER[24] = "admin";
+char WEB_PASS[24] = "1234";
+char mqtthost[64]; //la de hive tiene 51
+char mqttuser[24];
+char mqttpass[24];
+char mqtttopicbase[16];
+char mqttcert[32];
+uint32_t mqttport;
+
 std::string g_pending_ssid = "";
 std::string g_pending_pass = "";
 app_config_t g_app_config = {}; // También inicializamos la estructura
 bool g_ota_en_progreso = false; // Variable global OTA
 bool first_run_done = false; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
-bool autowebupdate = false; // Declaramos esta variable externa para controlar si se hace autoupdate de archivos web al iniciar el sistema. Si false, solo actualiza corriendo manualmente webupdate
+bool autowebupdate = true; // Si no hay archivo de conf, hace autowebupdate al inicio
+    //Declaramos esta variable externa para controlar si se hace autoupdate de archivos web al iniciar el sistema. 
+    //Si false, solo actualiza corriendo manualmente webupdate
 
 //bool wifi_ready = false; //indica si el wifi está vivo y operativo (con IP, no solo conectado a un AP)
 //bool g_manual_wifi_connect = false; // Indica si se solicitó una conexión WiFi manual (desde comando) para que el sistema no intente reconectar automáticamente
@@ -35,38 +44,86 @@ static const char *TAG_CONFIG = "CONFIG";
 static bool aplicar_config_linea_directo(const char* linea) {
     if (strncmp(linea, "setsensorid=", 12) == 0) {
         SensorID = atoi(linea + 12);
-        LOGI(TAG_CONFIG, "SensorID seteado a %d", SensorID);
+        LOGI(TAG_CONFIG, "SensorID: %d", SensorID);
         return true;
     }
     if (strncmp(linea, "setmtqtttls=", 12) == 0) {
         MqttTLS = (strcmp(linea + 12, "true") == 0);
-        LOGI(TAG_CONFIG, "MqttTLS seteado a %s", MqttTLS ? "true" : "false");
+        LOGI(TAG_CONFIG, "MqttTLS: %s", MqttTLS ? "true" : "false");
         return true;
     }
     if (strncmp(linea, "setesquema=", 11) == 0) {
         strncpy(esquema, linea + 11, sizeof(esquema) - 1);
         esquema[sizeof(esquema) - 1] = '\0';
-        LOGI(TAG_CONFIG, "esquema seteado a %s", esquema);
+        LOGI(TAG_CONFIG, "esquema: %s", esquema);
         return true;
     }
     if (strncmp(linea, "setwebuser=", 11) == 0) {
         strncpy(WEB_USER, linea + 11, sizeof(WEB_USER) - 1);
         WEB_USER[sizeof(WEB_USER) - 1] = '\0';
-        LOGI(TAG_CONFIG, "Web user seteado a %s", WEB_USER);
+        LOGI(TAG_CONFIG, "Web user: %s", WEB_USER);
         return true;
     }
     if (strncmp(linea, "setwebpass=", 11) == 0) {
         strncpy(WEB_PASS, linea + 11, sizeof(WEB_PASS) - 1);
         WEB_PASS[sizeof(WEB_PASS) - 1] = '\0';
-        LOGI(TAG_CONFIG, "Web password seteado a %s", WEB_PASS);
+        LOGI(TAG_CONFIG, "Web password: %s", WEB_PASS);
         return true;
     }
     if (strncmp(linea, "autowebupdate=", 14) == 0) {
         autowebupdate = (strcmp(linea + 14, "true") == 0);
-        LOGI(TAG_CONFIG, "AutoWebUpdate seteado a %s", autowebupdate ? "true" : "false");
+        LOGI(TAG_CONFIG, "Auto WebUpdate al inicio: %s", autowebupdate ? "true" : "false");
+        return true;
+    }
+    if (strncmp(linea, "setmqttuser=", 12) == 0) {
+        strncpy(mqttuser, linea + 12, sizeof(mqttuser) - 1);
+        mqttuser[sizeof(mqttuser) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Mqtt user: %s", mqttuser);
+        return true;
+    }
+    if (strncmp(linea, "setmqttpass=", 12) == 0) {
+        strncpy(mqttpass, linea + 12, sizeof(mqttpass) - 1);
+        mqttpass[sizeof(mqttpass) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Mqtt pass: %s", mqttpass);
+        return true;
+    }
+    if (strncmp(linea, "setmqtthost=", 12) == 0) {
+        strncpy(mqtthost, linea + 12, sizeof(mqtthost) - 1);
+        mqtthost[sizeof(mqttpass) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Mqtt user: %s", mqtthost);
+        return true;
+    }
+    if (strncmp(linea, "setmqtttbase=", 13) == 0) {
+        strncpy(mqtttopicbase, linea + 13, sizeof(mqtttopicbase) - 1);
+        mqtttopicbase[sizeof(mqtttopicbase) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Mqtt topic base: %s", mqtttopicbase);
+        return true;
+    }
+
+    if (strncmp(linea, "setmqttcert=", 12) == 0) {
+        char temp[128 + 8]; //buffer para armar mqttcert sin desperdiciar espacio permanentemente. Tamaño de linea + /fs/
+        const char* value = linea + 12; //Acá linea es el puntero al buffer, posición 0
+        // Caso 1: el usuario NO puso barra inicial → agregamos "/"
+        if (value[0] != '/') {
+            snprintf(temp, sizeof(temp),"%s/%s", MOUNT_POINT, value); //para no usar temp habría que tener un buffer mayor al size de linea + mount point
+        }
+        // Caso 2: el usuario sí puso barra inicial → concatenamos directo
+        else {
+            snprintf(temp, sizeof(temp),"%s%s", MOUNT_POINT, value);
+        }
+        strncpy(mqttcert, temp, sizeof(mqttcert));
+        mqttcert[sizeof(mqttcert) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Mqtt root certificate: %s", mqttcert);
+        return true;
+    }
+
+    if (strncmp(linea, "setmqtttport=", 12) == 0) {
+        mqttport = (uint32_t) strtoul(linea + 12, NULL, 10);
+        LOGI(TAG_CONFIG, "Mqtt port: %u", mqttport);
         return true;
     }
     // otros comandos de config que solo setean variables
+    
 
     //setmqttserver
     //setmqttport

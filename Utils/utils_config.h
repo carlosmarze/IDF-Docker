@@ -17,15 +17,15 @@
 #define MODO_AP_PASS "setup1234"
 #define CMDWEBPREFIX "TSComm,"
 #define MQTT_MAX_PAYLOAD 512
-#define MQTT_BROKER_HOST "node02.myqtthub.com" 
-#define MQTT_BROKER_USERNAME "MisESP8266-Dev"
-#define MQTT_BROKER_PASSWORD "AnHPt32KDKb5WjDG"
-#define MQTT_BROKER_PORT 1883 // O el puerto específico que uses (ej: 8080, 8883)
-#define MQTT_HIVEMQ_HOST "ce6972bb89804ca2a0522c31a4f3111d.s2.eu.hivemq.cloud"
-#define MQTT_HIVEMQ_PORT 8883
-#define MQTT_HIVEMQ_USERNAME "MisESP32-Dev"
-#define MQTT_HIVEMQ_PASSWORD "AnHPt32KDKb5WjDG"
-#define MQTT_HIVEMQ_ROOT_CERT_PEM MOUNT_POINT "/certs/hivemq_ca.pem" // Ruta al certificado raíz para HiveMQ Cloud
+//#define MQTT_BROKER_HOST "node02.myqtthub.com" 
+//#define MQTT_BROKER_USERNAME "MisESP8266-Dev"
+//#define MQTT_BROKER_PASSWORD "AnHPt32KDKb5WjDG"
+//#define MQTT_BROKER_PORT 1883 // O el puerto específico que uses (ej: 8080, 8883)
+//#define MQTT_HIVEMQ_HOST "ce6972bb89804ca2a0522c31a4f3111d.s2.eu.hivemq.cloud" //51 caracteres
+//#define MQTT_HIVEMQ_PORT 8883
+//#define MQTT_HIVEMQ_USERNAME "MisESP32-Dev"
+//#define MQTT_HIVEMQ_PASSWORD "AnHPt32KDKb5WjDG"
+//#define MQTT_HIVEMQ_ROOT_CERT_PEM MOUNT_POINT "/certs/hivemq_ca.pem" // Ruta al certificado raíz para HiveMQ Cloud
 #define MAX_TOPIC_LENGTH 32 //"miTSESP/K/7001" con 16 andaría bien pero dejamos margen
 #define MQTT_TOPIC_BASE "miTSESP/"
 //#define MQTTHIVE 1 // ahora es variable en config.txt Definir esta macro si queremos usar HiveMQ Cloud como broker MQTT, si no la definimos se usará el broker que tengas configurado en utils_mqtt.cpp (ej: Mosquitto local o en la nube)
@@ -53,6 +53,12 @@ extern bool MqttTLS;
 extern char esquema[]; // Esquema de datos para miTS, lo definimos como constante porque no cambia, pero podría ser una variable si se quisiera usar el mismo firmware para distintos esquemas.
 extern char WEB_USER[];
 extern char WEB_PASS[];
+extern char mqtthost[];
+extern char mqttuser[];
+extern char mqttpass[];
+extern char mqtttopicbase[];
+extern char mqttcert[];
+extern uint32_t mqttport;
 bool cargar_config_desde_file(CommandDispatcher* disp); // Movida aquí fuera
 bool cargar_config_desde_file_directo() ; // Carga directa sin pasar por el dispatcher, para usar en app_main antes de iniciar el dispatcher
 extern bool first_run_done; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
