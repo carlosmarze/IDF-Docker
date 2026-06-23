@@ -89,8 +89,8 @@ static bool aplicar_config_linea_directo(const char* linea) {
     }
     if (strncmp(linea, "setmqtthost=", 12) == 0) {
         strncpy(mqtthost, linea + 12, sizeof(mqtthost) - 1);
-        mqtthost[sizeof(mqttpass) - 1] = '\0';
-        LOGI(TAG_CONFIG, "Mqtt user: %s", mqtthost);
+        mqtthost[sizeof(mqtthost) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Mqtt Broker Host: %s", mqtthost);
         return true;
     }
     if (strncmp(linea, "setmqtttbase=", 13) == 0) {
