@@ -132,6 +132,11 @@ static void wifi_event_handler(void* arg,
             ESP_LOGI(TAG, "WIFI_EVENT_HOME_CHANNEL_CHANGE");
             //wifi_ready = true;
             break;
+            
+         case WIFI_EVENT_STA_BEACON_TIMEOUT:
+            ESP_LOGI(TAG, "WIFI_EVENT_STA_BEACON_TIMEOUT");
+            //wifi_ready = true;
+            break;
         default:
             ESP_LOGW(TAG, "WIFI_EVENT desconocido id=%ld", event_id);
             break;
