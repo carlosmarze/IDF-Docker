@@ -289,7 +289,8 @@ void mqtt_app_start_secure(void) {
     if (!mqtt_wd_handle) {
         xTaskCreate(mqtt_watchdog_task, "mqtt_watchdog", 4096, NULL, 3, &mqtt_wd_handle);
     }
-    LOGI("MQTT", "MQTT sobre SSL iniciado con HiveMQ Cloud");
+    //LOGI("MQTT", "MQTT sobre SSL iniciado con HiveMQ Cloud");
+    LOGI("MQTT", "MQTT iniciado MQTT_TRANSPORT_OVER_SSL. Host:%s User:%s Pass:%s Port:%u", mqtthost, mqttuser, mqttpass, mqttport);
     mqtt_initialized = true;
 }
 
@@ -330,7 +331,7 @@ void mqtt_app_start_insecure(void) {
     }
 
     mqtt_initialized = true;
-    LOGI("MQTT", "MQTT iniciado con MyqttHub");
+    LOGI("MQTT", "MQTT iniciado MQTT_TRANSPORT_OVER_TCP. Host:%s User:%s Pass:%s Port:%u", mqtthost, mqttuser, mqttpass, mqttport);
 }
 
 void mqtt_app_start(void) {

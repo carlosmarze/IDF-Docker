@@ -117,7 +117,7 @@ static bool aplicar_config_linea_directo(const char* linea) {
         return true;
     }
 
-    if (strncmp(linea, "setmqtttport=", 12) == 0) {
+    if (strncmp(linea, "setmqttport=", 12) == 0) {
         mqttport = (uint32_t) strtoul(linea + 12, NULL, 10);
         LOGI(TAG_CONFIG, "Mqtt port: %u", mqttport);
         return true;
