@@ -51,8 +51,8 @@ extern std::string g_pending_pass;
 extern int SensorID; // Identificador único del sensor lo definiremos en main.cpp o donde le pongamos el valor (leido de file seguramente)
 extern bool MqttTLS;
 extern char esquema[]; // Esquema de datos para miTS, lo definimos como constante porque no cambia, pero podría ser una variable si se quisiera usar el mismo firmware para distintos esquemas.
-extern char WEB_USER[];
-extern char WEB_PASS[];
+extern char webuser[];
+extern char webpass[];
 extern char mqtthost[];
 extern char mqttuser[];
 extern char mqttpass[];

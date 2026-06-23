@@ -15,8 +15,8 @@
 int SensorID = 0;
 bool MqttTLS = false; // Indica si se debe usar MQTT sobre TLS (ej: HiveMQ Cloud) o MQTT sin TLS (ej: Mosquitto local o en la nube sin SSL)
 char esquema[16] = "ESP32IDF"; // Esquema de datos para miTS, se setea en config.txt como variable si se quisiera usar el mismo firmware para distintos esquemas.
-char WEB_USER[24] = "admin";
-char WEB_PASS[24] = "1234";
+char webuser[24] = "admin";
+char webpass[24] = "1234";
 char mqtthost[64]; //la de hive tiene 51
 char mqttuser[24];
 char mqttpass[24];
@@ -59,15 +59,15 @@ static bool aplicar_config_linea_directo(const char* linea) {
         return true;
     }
     if (strncmp(linea, "setwebuser=", 11) == 0) {
-        strncpy(WEB_USER, linea + 11, sizeof(WEB_USER) - 1);
-        WEB_USER[sizeof(WEB_USER) - 1] = '\0';
-        LOGI(TAG_CONFIG, "Web user: %s", WEB_USER);
+        strncpy(webuser, linea + 11, sizeof(webuser) - 1);
+        webuser[sizeof(webuser) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Web user: %s", webuser);
         return true;
     }
     if (strncmp(linea, "setwebpass=", 11) == 0) {
-        strncpy(WEB_PASS, linea + 11, sizeof(WEB_PASS) - 1);
-        WEB_PASS[sizeof(WEB_PASS) - 1] = '\0';
-        LOGI(TAG_CONFIG, "Web password: %s", WEB_PASS);
+        strncpy(webpass, linea + 11, sizeof(webpass) - 1);
+        webpass[sizeof(webpass) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Web password: %s", webpass);
         return true;
     }
     if (strncmp(linea, "autowebupdate=", 14) == 0) {

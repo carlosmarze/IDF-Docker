@@ -113,7 +113,7 @@ static bool is_authenticated_Ip(httpd_req_t *req) {
             output[out_len] = '\0';
             
             char expected[64];
-            snprintf(expected, sizeof(expected), "%s:%s", WEB_USER, WEB_PASS);
+            snprintf(expected, sizeof(expected), "%s:%s", webuser, webpass);
             
             if (strcmp((char *)output, expected) == 0) {
                 // ÉXITO: Guardamos esta IP como autorizada
@@ -145,7 +145,7 @@ static bool is_authenticated(httpd_req_t *req) {
             output[out_len] = '\0';
 
             char expected[64];
-            snprintf(expected, sizeof(expected), "%s:%s", WEB_USER, WEB_PASS);
+            snprintf(expected, sizeof(expected), "%s:%s", webuser, webpass);
             
             if (strcmp((char *)output, expected) == 0) return true;
         }
