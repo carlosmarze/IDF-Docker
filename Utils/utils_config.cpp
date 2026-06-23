@@ -15,11 +15,15 @@
 int SensorID = 0;
 bool MqttTLS = false; // Indica si se debe usar MQTT sobre TLS (ej: HiveMQ Cloud) o MQTT sin TLS (ej: Mosquitto local o en la nube sin SSL)
 char esquema[10] = "ESP32IDF"; // Esquema de datos para miTS, se setea en config.txt como variable si se quisiera usar el mismo firmware para distintos esquemas.
+char WEB_USER[20] = "admin";
+char WEB_PASS[20] = "1234";
 std::string g_pending_ssid = "";
 std::string g_pending_pass = "";
 app_config_t g_app_config = {}; // También inicializamos la estructura
 bool g_ota_en_progreso = false; // Variable global OTA
 bool first_run_done = false; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
+bool autowebupdate = false; // Declaramos esta variable externa para controlar si se hace autoupdate de archivos web al iniciar el sistema. Si false, solo actualiza corriendo manualmente webupdate
+
 //bool wifi_ready = false; //indica si el wifi está vivo y operativo (con IP, no solo conectado a un AP)
 //bool g_manual_wifi_connect = false; // Indica si se solicitó una conexión WiFi manual (desde comando) para que el sistema no intente reconectar automáticamente
 
@@ -45,10 +49,25 @@ static bool aplicar_config_linea_directo(const char* linea) {
         LOGI(TAG_CONFIG, "esquema seteado a %s", esquema);
         return true;
     }
-
+    if (strncmp(linea, "setwebuser=", 11) == 0) {
+        strncpy(WEB_USER, linea + 11, sizeof(WEB_USER) - 1);
+        WEB_USER[sizeof(WEB_USER) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Web user seteado a %s", WEB_USER);
+        return true;
+    }
+    if (strncmp(linea, "setwebpass=", 11) == 0) {
+        strncpy(WEB_PASS, linea + 11, sizeof(WEB_PASS) - 1);
+        WEB_PASS[sizeof(WEB_PASS) - 1] = '\0';
+        LOGI(TAG_CONFIG, "Web password seteado a %s", WEB_PASS);
+        return true;
+    }
+    if (strncmp(linea, "autowebupdate=", 14) == 0) {
+        autowebupdate = (strcmp(linea + 14, "true") == 0);
+        LOGI(TAG_CONFIG, "AutoWebUpdate seteado a %s", autowebupdate ? "true" : "false");
+        return true;
+    }
     // otros comandos de config que solo setean variables
-    //setuser
-    //setpass
+
     //setmqttserver
     //setmqttport
     //setmqttuser

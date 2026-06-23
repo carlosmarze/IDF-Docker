@@ -51,10 +51,12 @@ extern std::string g_pending_pass;
 extern int SensorID; // Identificador único del sensor lo definiremos en main.cpp o donde le pongamos el valor (leido de file seguramente)
 extern bool MqttTLS;
 extern char esquema[]; // Esquema de datos para miTS, lo definimos como constante porque no cambia, pero podría ser una variable si se quisiera usar el mismo firmware para distintos esquemas.
+extern char WEB_USER[];
+extern char WEB_PASS[];
 bool cargar_config_desde_file(CommandDispatcher* disp); // Movida aquí fuera
 bool cargar_config_desde_file_directo() ; // Carga directa sin pasar por el dispatcher, para usar en app_main antes de iniciar el dispatcher
 extern bool first_run_done; // Declaramos esta variable externa para controlar la primera ejecución, está en config.cpp
-
+extern bool autowebupdate; // Declaramos esta variable externa para controlar si se hace autoupdate de archivos web al iniciar el sistema, está en config.cpp
 #ifdef __cplusplus
 extern "C" {
 #endif

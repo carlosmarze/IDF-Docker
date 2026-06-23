@@ -331,7 +331,10 @@ void app_task(void *pv)
     start_scheduler();
     
     xTaskCreate(service_starter_task, "srv_start", 8192, NULL, 5, NULL); //aquí se resetea el flag de primera ejecución para que las tareas del scheduler hagan su lógica de inicio correctamente en la primera ejecución, y luego se setea a false para que el resto de las ejecuciones sean manejadas normalmente por el scheduler.
-    process_commands(CMD_SRC_SYSTEM, "webupdate", ' ', ','); //baja updates de archivos del sensor desde el servidor web, como config.txt o cualquier otro archivo que se quiera actualizar remotamente sin necesidad de hacer una OTA completa, y lo hace al iniciar el scheduler para que los archivos estén actualizados antes de que las tareas del scheduler empiecen a ejecutarse, y así minimizar riesgos de fallos en las tareas del scheduler por archivos desactualizados o con errores que hayan sido corregidos en el servidor web. Este comando también se puede ejecutar manualmente en cualquier momento para forzar una actualización de archivos desde el servidor web, y así corregir cualquier posible error o actualizar la configuración sin necesidad de hacer una OTA completa.
+    if(autowebupdate){
+        process_commands(CMD_SRC_SYSTEM, "webupdate", ' ', ','); //baja updates de archivos del sensor desde el servidor web, como config.txt o cualquier otro archivo que se quiera actualizar remotamente sin necesidad de hacer una OTA completa, y lo hace al iniciar el scheduler para que los archivos estén actualizados antes de que las tareas del scheduler empiecen a ejecutarse, y así minimizar riesgos de fallos en las tareas del scheduler por archivos desactualizados o con errores que hayan sido corregidos en el servidor web. Este comando también se puede ejecutar manualmente en cualquier momento para forzar una actualización de archivos desde el servidor web, y así corregir cualquier posible error o actualizar la configuración sin necesidad de hacer una OTA completa.
+    }
+    
     ESP_LOGI("APP_MAIN", "Fin Init. Heap libre: %d", esp_get_free_heap_size());
 
     // ------------------------------------------------------------

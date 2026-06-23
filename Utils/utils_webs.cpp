@@ -44,8 +44,8 @@ static char authorized_ip[16] = {0}; // Aquí guardamos la IP autorizada
 //tamaño del buffer de una respuesta HTML dinámica
 #define HTML_BUFFER_SIZE 256
 // Credenciales
-#define WEB_USER "admin"
-#define WEB_PASS "1234"
+//#define WEB_USER "admin"
+//#define WEB_PASS "1234"
 
 // 
 /* ====================================================
