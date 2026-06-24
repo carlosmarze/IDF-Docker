@@ -119,7 +119,7 @@ static const struct ble_gatt_svc_def gatt_nus_svcs[] = {
 };
 
 // ---------------------------------------------------------------------------
-//  PUBLICIDAD Y EVENTOS GAP
+//  advertising Y EVENTOS GAP
 // ---------------------------------------------------------------------------
 static void start_advertising(void);
 
@@ -132,7 +132,7 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
             conn_handle_global = event->connect.conn_handle;
         } else {
             ESP_LOGE(TAG, "Error de conexión, status=%d", event->connect.status);
-            start_advertising(); // Reintentar publicidad
+            start_advertising(); // Reintentar advertising
         }
         break;
 
@@ -167,14 +167,14 @@ static void start_advertising(void)
     fields.name_len = strlen((char*)fields.name);
     fields.name_is_complete = 1;
     
-    // Incluir UUID del servicio en la publicidad
+    // Incluir UUID del servicio en la advertising
     fields.uuids128 = (ble_uuid128_t[]){ gatt_nus_svc_uuid };
     fields.num_uuids128 = 1;
     fields.uuids128_is_complete = 1;
 
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
-        ESP_LOGE(TAG, "Error configurando publicidad; rc=%d", rc);
+        ESP_LOGE(TAG, "Error configurando advertising; rc=%d", rc);
         return;
     }
 
@@ -185,24 +185,10 @@ static void start_advertising(void)
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
                            &adv_params, bleprph_gap_event, NULL);
     if (rc != 0) {
-        ESP_LOGE(TAG, "Error iniciando publicidad; rc=%d", rc);
+        ESP_LOGE(TAG, "Error iniciando advertising; rc=%d", rc);
         return;
     }
-    ESP_LOGI(TAG, "Publicidad iniciada");
-}
-
-// ---------------------------------------------------------------------------
-//  CALLBACKS DE ESTADO DEL HOST (SYNC / RESET)
-// ---------------------------------------------------------------------------
-static void ble_app_on_sync(void)
-{
-    ble_hs_id_infer_auto(0, &own_addr_type);
-    start_advertising();
-}
-
-static void ble_app_on_reset(int reason)
-{
-    ESP_LOGE(TAG, "Resetting state; reason=%d", reason);
+    ESP_LOGI(TAG, "advertising iniciada");
 }
 
 // ---------------------------------------------------------------------------
@@ -218,6 +204,24 @@ static void ble_uart_host_task(void *param)
 // ---------------------------------------------------------------------------
 //  INICIALIZACIÓN
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+//  CALLBACKS DE ESTADO DEL HOST (SYNC / RESET)
+// ---------------------------------------------------------------------------
+static void ble_app_on_sync(void)
+{
+    ESP_LOGI(TAG, "Host sincronizado, iniciando advertising");
+    ble_hs_id_infer_auto(0, &own_addr_type);
+    start_advertising(); // SOLO se llama desde aquí
+}
+
+static void ble_app_on_reset(int reason)
+{
+    ESP_LOGE(TAG, "Resetting state; reason=%d", reason);
+}
+
+// ---------------------------------------------------------------------------
+//  INICIALIZACIÓN
+// ---------------------------------------------------------------------------
 void ble_uart_init()
 {
     ESP_LOGI(TAG, "Inicializando BLE UART con NimBLE...");
@@ -227,30 +231,37 @@ void ble_uart_init()
 
     // 2. Configurar callbacks del host
     ble_hs_cfg.reset_cb = ble_app_on_reset;
-    ble_hs_cfg.sync_cb = ble_app_on_sync;
+    ble_hs_cfg.sync_cb = ble_app_on_sync; // CRÍTICO: este callback debe estar registrado
     ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
-
-    //
-    // 4. Inicializar servicios básicos de NimBLE (GAP y GATT por defecto)
-    ble_svc_gap_init();
-    ble_svc_gatt_init(); // <--- Añade esto para evitar problemas de inicialización GATT
 
     // 3. Configurar nombre del dispositivo
     ble_svc_gap_device_name_set("ESP32S3-BLE-UART");
 
-    // 4. Registrar el servicio NUS estáticamente
-    int rc = ble_gatts_count_cfg(gatt_nus_svcs);
-    assert(rc == 0);
-    rc = ble_gatts_add_svcs(gatt_nus_svcs);
-    assert(rc == 0);
+    // 4. Inicializar servicios básicos
+    ble_svc_gap_init();
+    ble_svc_gatt_init();
 
-    // 5. Iniciar la tarea FreeRTOS que maneja el host NimBLE
+    // 5. Registrar el servicio NUS estáticamente
+    int rc = ble_gatts_count_cfg(gatt_nus_svcs);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error contando configuración GATT; rc=%d", rc);
+        return;
+    }
+    
+    rc = ble_gatts_add_svcs(gatt_nus_svcs);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error agregando servicios GATT; rc=%d", rc);
+        return;
+    }
+
+    // 6. Iniciar la tarea FreeRTOS que maneja el host NimBLE
     nimble_port_freertos_init(ble_uart_host_task);
     
-    // 6. Registrar callback de recepción de tu aplicación
+    // 7. Registrar callback de recepción
     ble_uart_set_rx_callback(ble_rx_handler);
 
-    ESP_LOGI(TAG, "BLE UART listo.");
+    ESP_LOGI(TAG, "BLE UART inicializado (esperando sync...)");
+    // NO llamar a start_advertising() aquí
 }
 
 // ---------------------------------------------------------------------------
