@@ -1,6 +1,6 @@
 #ifndef MISVARIABLESPROYECTO_H
     #define MISVARIABLESPROYECTO_H
-    #define version_info "IDF6BAS20260624_V3" // Definición de la versión del firmware
+    #define version_info "IDF6BAS20260624_V4" // Definición de la versión del firmware
     //extern int SensorID ; // Identificador único del sensor lo definiremos en main.cpp o donde le pongamos el valor (leido de file seguramente)
     //#define ESQUEMA "ESP32IDF" // Esquema de datos para miTS, lo definimos como constante porque no cambia, pero podría ser una variable si se quisiera usar el mismo firmware para distintos esquemas.
     #define WRITE_API_KEY "WR4QL85BR9KIBP6V" // Write API Key para miTS defaults, cuando no existe archivo config.

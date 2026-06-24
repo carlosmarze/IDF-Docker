@@ -1,296 +1,210 @@
 #include "utils_bt.h"
 #include "esp_log.h"
-#include <string.h>
-#include "utils_cmd_processor.h"
-#include "utils_cmd_dispatcher.h"
 
-// --- Headers de NimBLE (Compatibles con ESP-IDF v5 y v6) ---
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
-
-// El header principal que engloba GAP, GATTS, mbufs, etc.
-#include "host/ble_hs.h" 
+#include "host/ble_hs.h"
 #include "host/ble_uuid.h"
-#include "host/util/util.h"
-
-// Servicios por defecto de NimBLE
 #include "services/gap/ble_svc_gap.h"
-#include "services/gatt/ble_svc_gatt.h" 
+#include "services/gatt/ble_svc_gatt.h"
+
+//#include "utils_logger.h"
+#include "utils_cmd_processor.h"
 
 static const char* TAG = "BLE_UART";
 
+static uint16_t nus_rx_handle;
+static uint16_t nus_tx_handle;
+
 static ble_rx_callback_t g_rx_callback = nullptr;
 
-// Variables de estado de NimBLE
-static uint16_t nus_rx_handle = 0;
-static uint16_t nus_tx_handle = 0;
-static uint16_t conn_handle_global = BLE_HS_CONN_HANDLE_NONE; // 0xFFFF
-static uint8_t own_addr_type;
+// UUIDs NUS (Nordic UART Service)
+static const ble_uuid128_t NUS_SERVICE_UUID =
+    BLE_UUID128_INIT(0x6E,0x40,0x00,0x01,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
+
+static const ble_uuid128_t NUS_RX_UUID =
+    BLE_UUID128_INIT(0x6E,0x40,0x00,0x02,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
+
+static const ble_uuid128_t NUS_TX_UUID =
+    BLE_UUID128_INIT(0x6E,0x40,0x00,0x03,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
+
 
 // ---------------------------------------------------------------------------
-//  UUIDs del servicio NUS (Nordic UART Service)
-//  En NimBLE, los UUIDs de 128 bits se definen en formato Little-Endian
+//  HANDLERS
 // ---------------------------------------------------------------------------
-static const ble_uuid128_t gatt_nus_svc_uuid = BLE_UUID128_INIT(
-    0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 
-    0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E
-);
 
-static const ble_uuid128_t gatt_nus_rx_uuid = BLE_UUID128_INIT(
-    0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 
-    0x93, 0xF3, 0xA3, 0xB5, 0x02, 0x00, 0x40, 0x6E
-);
-
-static const ble_uuid128_t gatt_nus_tx_uuid = BLE_UUID128_INIT(
-    0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 
-    0x93, 0xF3, 0xA3, 0xB5, 0x03, 0x00, 0x40, 0x6E
-);
-
-// ---------------------------------------------------------------------------
-//  BLE Handler (Sin cambios)
-// ---------------------------------------------------------------------------
-static void ble_rx_handler(const char* data, int len)
+static int ble_uart_rx_handler(uint16_t conn_handle,
+                               uint16_t attr_handle,
+                               struct ble_gatt_access_ctxt *ctxt,
+                               void *arg)
 {
-    char cmd[256];
-    int n = len < 255 ? len : 255;
-    memcpy(cmd, data, n);
-    cmd[n] = '\0';
+    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+        const uint8_t* data = ctxt->om->om_data;
+        int len = ctxt->om->om_len;
 
-    process_commands(CMD_SRC_BT, cmd, ' ', '=', -1);
-}
-
-// ---------------------------------------------------------------------------
-//  CALLBACK DE ACCESO A CARACTERÍSTICAS (GATTS)
-// ---------------------------------------------------------------------------
-static int gatt_svr_chr_access_nus(uint16_t conn_handle, uint16_t attr_handle,
-                                   struct ble_gatt_access_ctxt *ctxt, void *arg)
-{
-    // Si escriben en la característica RX
-    if (ble_uuid_cmp(ctxt->chr->uuid, (ble_uuid_t *)&gatt_nus_rx_uuid) == 0) {
-        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-            ESP_LOGI(TAG, "RX recibido: %d bytes", ctxt->om->om_len);
-            if (g_rx_callback) {
-                g_rx_callback((const char *)ctxt->om->om_data, ctxt->om->om_len);
-            }
-            return 0;
+        if (g_rx_callback) {
+            g_rx_callback((const char*)data, len);
         }
-    }
-    
-    // Si leen la característica TX (No permitido en NUS estándar)
-    if (ble_uuid_cmp(ctxt->chr->uuid, (ble_uuid_t *)&gatt_nus_tx_uuid) == 0) {
-        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-            return BLE_ATT_ERR_READ_NOT_PERMITTED;
-        }
-    }
-
-    return BLE_ATT_ERR_UNLIKELY;
-}
-
-// ---------------------------------------------------------------------------
-//  DEFINICIÓN ESTÁTICA DEL SERVICIO Y CARACTERÍSTICAS (NIMBLE)
-// ---------------------------------------------------------------------------
-static const struct ble_gatt_chr_def gatt_nus_chrs[] = {
-    {
-        .uuid = (ble_uuid_t *)&gatt_nus_rx_uuid,
-        .access_cb = gatt_svr_chr_access_nus,
-        .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
-        .val_handle = &nus_rx_handle,
-    },
-    {
-        .uuid = (ble_uuid_t *)&gatt_nus_tx_uuid,
-        .access_cb = gatt_svr_chr_access_nus,
-        .flags = BLE_GATT_CHR_F_NOTIFY,
-        .val_handle = &nus_tx_handle,
-    },
-    {
-        0, // Fin de las características
-    }
-};
-
-static const struct ble_gatt_svc_def gatt_nus_svcs[] = {
-    {
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = (ble_uuid_t *)&gatt_nus_svc_uuid,
-        .characteristics = gatt_nus_chrs,
-    },
-    {
-        0, // Fin de los servicios
-    }
-};
-
-// ---------------------------------------------------------------------------
-//  advertising Y EVENTOS GAP
-// ---------------------------------------------------------------------------
-static void start_advertising(void);
-
-static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
-{
-    switch (event->type) {
-    case BLE_GAP_EVENT_CONNECT:
-        if (event->connect.status == 0) {
-            ESP_LOGI(TAG, "Conexión establecida");
-            conn_handle_global = event->connect.conn_handle;
-        } else {
-            ESP_LOGE(TAG, "Error de conexión, status=%d", event->connect.status);
-            start_advertising(); // Reintentar advertising
-        }
-        break;
-
-    case BLE_GAP_EVENT_DISCONNECT:
-        ESP_LOGI(TAG, "Desconectado, reason=%d", event->disconnect.reason);
-        conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
-        start_advertising(); // Volver a publicitar
-        break;
-        
-    case BLE_GAP_EVENT_SUBSCRIBE:
-        ESP_LOGI(TAG, "Subscribe event, conn_handle=%d, notify=%d", 
-                 event->subscribe.conn_handle, event->subscribe.cur_notify);
-        break;
-
-    default:
-        break;
     }
     return 0;
 }
 
-static void start_advertising(void)
+static int ble_uart_tx_handler(uint16_t conn_handle,
+                               uint16_t attr_handle,
+                               struct ble_gatt_access_ctxt *ctxt,
+                               void *arg)
 {
-    struct ble_gap_adv_params adv_params;
-    struct ble_hs_adv_fields fields;
-    int rc;
-
-    memset(&fields, 0, sizeof(fields));
-    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    fields.tx_pwr_lvl_is_present = 1;
-    fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
-    fields.name = (uint8_t *)"ESP32S3-BLE-UART";
-    fields.name_len = strlen((char*)fields.name);
-    fields.name_is_complete = 1;
-    
-    // Incluir UUID del servicio en la advertising
-    fields.uuids128 = (ble_uuid128_t[]){ gatt_nus_svc_uuid };
-    fields.num_uuids128 = 1;
-    fields.uuids128_is_complete = 1;
-
-    rc = ble_gap_adv_set_fields(&fields);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Error configurando advertising; rc=%d", rc);
-        return;
-    }
-
-    memset(&adv_params, 0, sizeof(adv_params));
-    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    
-    rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
-                           &adv_params, bleprph_gap_event, NULL);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Error iniciando advertising; rc=%d", rc);
-        return;
-    }
-    ESP_LOGI(TAG, "advertising iniciada");
+    return 0; // TX es solo notify
 }
 
+
 // ---------------------------------------------------------------------------
-//  TAREA DEL HOST NIMBLE
+//  DEFINICIÓN DEL SERVICIO NUS (C++ COMPATIBLE)
 // ---------------------------------------------------------------------------
-static void ble_uart_host_task(void *param)
+
+static const struct ble_gatt_svc_def gatt_uart_svc[] = {
+    {
+        BLE_GATT_SVC_TYPE_PRIMARY,      // type
+        &NUS_SERVICE_UUID.u,            // uuid
+        NULL,                           // includes
+        (struct ble_gatt_chr_def[]) {
+            {
+                &NUS_RX_UUID.u,          // uuid
+                ble_uart_rx_handler,     // access_cb
+                NULL,                    // arg
+                NULL,                    // descriptors
+                BLE_GATT_CHR_F_WRITE,    // flags
+                0,                       // min_key_size
+                &nus_rx_handle,          // val_handle
+                NULL                     // cpfd
+            },
+            {
+                &NUS_TX_UUID.u,          // uuid
+                ble_uart_tx_handler,     // access_cb
+                NULL,                    // arg
+                NULL,                    // descriptors
+                BLE_GATT_CHR_F_NOTIFY,   // flags
+                0,                       // min_key_size
+                &nus_tx_handle,          // val_handle
+                NULL                     // cpfd
+            },
+            { 0 } // terminador de características
+        }
+    },
+    { 0 } // terminador de servicios
+};
+
+
+
+// ---------------------------------------------------------------------------
+//  GAP EVENTOS
+// ---------------------------------------------------------------------------
+
+static int gap_event_handler(struct ble_gap_event *event, void *arg)
 {
-    ESP_LOGI(TAG, "BLE Host Task iniciado");
-    nimble_port_run(); // Esto corre hasta que se llama a nimble_port_stop()
-    nimble_port_freertos_deinit();
+    switch (event->type) {
+
+        case BLE_GAP_EVENT_CONNECT: {
+            ESP_LOGI(TAG, "Conectado");
+            break;
+        }
+
+        case BLE_GAP_EVENT_DISCONNECT:{
+        
+            ESP_LOGI(TAG, "Desconectado, reiniciando advertising");
+
+            // Declaración válida en C++
+            struct ble_gap_adv_params adv_params;
+            memset(&adv_params, 0, sizeof(adv_params));
+
+            adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+            adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+
+            ble_gap_adv_start(
+                0,                  // own address type
+                NULL,               // no peer address
+                BLE_HS_FOREVER,     // duración
+                &adv_params,        // parámetros válidos
+                gap_event_handler,  // callback GAP
+                NULL                // arg
+            );
+            break;
+        }
+    }
+
+    return 0;
 }
+
+
 
 // ---------------------------------------------------------------------------
 //  INICIALIZACIÓN
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-//  CALLBACKS DE ESTADO DEL HOST (SYNC / RESET)
-// ---------------------------------------------------------------------------
-static void ble_app_on_sync(void)
+static void ble_rx_handler(const char* data, int len)
 {
-    ESP_LOGI(TAG, "Host sincronizado, iniciando advertising");
-    ble_hs_id_infer_auto(0, &own_addr_type);
-    start_advertising(); // SOLO se llama desde aquí
+    char cmd[256];
+
+    int n = (len < 255) ? len : 255;
+    memcpy(cmd, data, n);
+    cmd[n] = '\0';
+
+    // Llamada directa a tu parser
+    process_commands(CMD_SRC_BT, cmd, ' ', '=', -1);
 }
 
-static void ble_app_on_reset(int reason)
-{
-    ESP_LOGE(TAG, "Resetting state; reason=%d", reason);
-}
 
-// ---------------------------------------------------------------------------
-//  INICIALIZACIÓN
-// ---------------------------------------------------------------------------
 void ble_uart_init()
 {
-    ESP_LOGI(TAG, "Inicializando BLE UART con NimBLE...");
+    ESP_LOGI(TAG, "Inicializando NimBLE UART...");
 
-    // 1. Inicializar el puerto NimBLE
     nimble_port_init();
 
-    // 2. Configurar callbacks del host
-    ble_hs_cfg.reset_cb = ble_app_on_reset;
-    ble_hs_cfg.sync_cb = ble_app_on_sync; // CRÍTICO: este callback debe estar registrado
-    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
-
-    // 3. Configurar nombre del dispositivo
-    ble_svc_gap_device_name_set("ESP32S3-BLE-UART");
-
-    // 4. Inicializar servicios básicos
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
-    // 5. Registrar el servicio NUS estáticamente
-    int rc = ble_gatts_count_cfg(gatt_nus_svcs);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Error contando configuración GATT; rc=%d", rc);
-        return;
-    }
-    
-    rc = ble_gatts_add_svcs(gatt_nus_svcs);
-    if (rc != 0) {
-        ESP_LOGE(TAG, "Error agregando servicios GATT; rc=%d", rc);
-        return;
-    }
+    int rc = ble_gatts_count_cfg(gatt_uart_svc);
+    if (rc != 0) ESP_LOGE(TAG, "count_cfg error %d", rc);
 
-    // 6. Iniciar la tarea FreeRTOS que maneja el host NimBLE
-    nimble_port_freertos_init(ble_uart_host_task);
-    
-    // 7. Registrar callback de recepción
+    rc = ble_gatts_add_svcs(gatt_uart_svc);
+    if (rc != 0) ESP_LOGE(TAG, "add_svcs error %d", rc);
+
+    ble_hs_cfg.sync_cb = []() {
+        ESP_LOGI(TAG, "BLE sync OK");
+
+        struct ble_gap_adv_params adv_params;
+        adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+        adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+
+        ble_gap_adv_start(0, NULL, BLE_HS_FOREVER,
+                          &adv_params,
+                          gap_event_handler, NULL);
+    };
+    // REGISTRO AUTOMÁTICO DEL CALLBACK
     ble_uart_set_rx_callback(ble_rx_handler);
 
-    ESP_LOGI(TAG, "BLE UART inicializado (esperando sync...)");
-    // NO llamar a start_advertising() aquí
+    nimble_port_freertos_init([](void*) { nimble_port_run(); });
 }
+
 
 // ---------------------------------------------------------------------------
 //  ENVÍO DE DATOS (Notify)
 // ---------------------------------------------------------------------------
+
 void ble_uart_send(const char* msg)
 {
-    if (conn_handle_global == BLE_HS_CONN_HANDLE_NONE || nus_tx_handle == 0) {
-        ESP_LOGW(TAG, "No conectado o TX no inicializado");
-        return;
-    }
+    if (!nus_tx_handle) return;
 
-    int len = strlen(msg);
-    
-    // En NimBLE, los datos se envían usando "mbufs" (memory buffers)
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(msg, len);
-    if (!om) {
-        ESP_LOGE(TAG, "Error asignando mbuf para envío");
-        return;
-    }
-
-    // Enviar notificación personalizada
-    ble_gatts_notify_custom(conn_handle_global, nus_tx_handle, om);
+    struct os_mbuf *om = ble_hs_mbuf_from_flat(msg, strlen(msg));
+    ble_gatts_notify_custom(0, nus_tx_handle, om);
 }
 
+
 // ---------------------------------------------------------------------------
-//  REGISTRAR CALLBACK
+//  CALLBACK DE RECEPCIÓN
 // ---------------------------------------------------------------------------
+
 void ble_uart_set_rx_callback(ble_rx_callback_t cb)
 {
     g_rx_callback = cb;
 }
+

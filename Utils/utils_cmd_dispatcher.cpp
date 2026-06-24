@@ -78,7 +78,7 @@ bool CommandDispatcher::submit(cmd_source_t src, const char *text) {
 }
 
 void CommandDispatcher::start() {
-    xTaskCreate(taskEntry, "disp_task", 4096, this, 5, NULL);
+    xTaskCreate(taskEntry, "disp_task", 8192, this, 5, NULL);
 }
 
 void CommandDispatcher::taskEntry(void *arg) {
