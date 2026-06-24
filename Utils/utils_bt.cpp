@@ -82,7 +82,7 @@ static const struct ble_gatt_svc_def gatt_uart_svc[] = {
             },
             {
                 &NUS_TX_UUID.u,
-                ble_uart_tx_handler,
+                NULL,
                 NULL,
                 NULL,
                 BLE_GATT_CHR_F_NOTIFY,
