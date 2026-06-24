@@ -12,148 +12,201 @@
 
 static const char* TAG = "BLE_UART";
 
-static uint16_t nus_rx_handle;
-static uint16_t nus_tx_handle;
+// ---------------------------------------------------------------------------
+//  VARIABLES DE ESTADO
+// ---------------------------------------------------------------------------
+static uint16_t nus_rx_handle = 0;
+static uint16_t nus_tx_handle = 0;
+static uint16_t conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
+static uint8_t own_addr_type;
 
 static ble_rx_callback_t g_rx_callback = nullptr;
 
-// UUIDs NUS (Nordic UART Service)
+// ---------------------------------------------------------------------------
+//  UUIDs NUS en formato LITTLE-ENDIAN (obligatorio para NimBLE)
+// ---------------------------------------------------------------------------
 static const ble_uuid128_t NUS_SERVICE_UUID =
-    BLE_UUID128_INIT(0x6E,0x40,0x00,0x01,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
+    BLE_UUID128_INIT(0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
+                     0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E);
 
 static const ble_uuid128_t NUS_RX_UUID =
-    BLE_UUID128_INIT(0x6E,0x40,0x00,0x02,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
-//el que aparece en el nrf es el big endian de esto: 9ecadc24-0ee5-a9e0-93f3-a3b50300406e
+    BLE_UUID128_INIT(0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
+                     0x93, 0xF3, 0xA3, 0xB5, 0x02, 0x00, 0x40, 0x6E);
+
 static const ble_uuid128_t NUS_TX_UUID =
-    BLE_UUID128_INIT(0x6E,0x40,0x00,0x03,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
-
-static void start_advertising();
-static int gap_event_handler(struct ble_gap_event *event, void *arg);
-
+    BLE_UUID128_INIT(0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0,
+                     0x93, 0xF3, 0xA3, 0xB5, 0x03, 0x00, 0x40, 0x6E);
 
 // ---------------------------------------------------------------------------
-//  HANDLERS
+//  CALLBACK DE REGISTRO GATT
 // ---------------------------------------------------------------------------
-
-static int ble_uart_rx_handler(uint16_t conn_handle,
-                               uint16_t attr_handle,
-                               struct ble_gatt_access_ctxt *ctxt,
-                               void *arg)
+static void ble_gatts_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 {
-    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-        const uint8_t* data = ctxt->om->om_data;
-        int len = ctxt->om->om_len;
+    switch (ctxt->op) {
+        case BLE_GATT_REGISTER_OP_SVC:
+            ESP_LOGI(TAG, "Servicio registrado: handle=%d", ctxt->svc.handle);
+            break;
 
-        if (g_rx_callback) {
-            g_rx_callback((const char*)data, len);
+        case BLE_GATT_REGISTER_OP_CHR:
+            ESP_LOGI(TAG, "Característica registrada: def_handle=%d val_handle=%d",
+                     ctxt->chr.def_handle, ctxt->chr.val_handle);
+            break;
+
+        case BLE_GATT_REGISTER_OP_DSC:
+            ESP_LOGI(TAG, "Descriptor registrado: handle=%d", ctxt->dsc.handle);
+            break;
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  HANDLER DE ACCESO GATT
+// ---------------------------------------------------------------------------
+static int ble_uart_access_cb(uint16_t conn_handle, uint16_t attr_handle,
+                              struct ble_gatt_access_ctxt *ctxt, void *arg)
+{
+    // Escribir en RX
+    if (ble_uuid_cmp(ctxt->chr->uuid, (const ble_uuid_t *)&NUS_RX_UUID) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+            const uint8_t* data = ctxt->om->om_data;
+            int len = ctxt->om->om_len;
+
+            ESP_LOGI(TAG, "RX: %d bytes", len);
+
+            if (g_rx_callback) {
+                g_rx_callback((const char*)data, len);
+            }
+            return 0;
         }
     }
-    return 0;
-}
 
-static int ble_uart_tx_handler(uint16_t conn_handle,
-                               uint16_t attr_handle,
-                               struct ble_gatt_access_ctxt *ctxt,
-                               void *arg)
-{
-    return 0; // TX es solo notify
-}
-
-
-// ---------------------------------------------------------------------------
-//  DEFINICIÓN DEL SERVICIO NUS
-// ---------------------------------------------------------------------------
-
-static const struct ble_gatt_svc_def gatt_uart_svc[] = {
-    {
-        BLE_GATT_SVC_TYPE_PRIMARY,
-        &NUS_SERVICE_UUID.u,
-        NULL,
-        (struct ble_gatt_chr_def[]) {
-            {
-                &NUS_RX_UUID.u,
-                ble_uart_rx_handler,
-                NULL,
-                NULL,
-                BLE_GATT_CHR_F_WRITE,
-                0,
-                &nus_rx_handle,
-                NULL
-            },
-            {
-                &NUS_TX_UUID.u,
-                NULL,
-                NULL,
-                NULL,
-                BLE_GATT_CHR_F_NOTIFY,
-                0,
-                &nus_tx_handle,
-                NULL
-            },
-            { 0 }
+    // Leer TX (no permitido en NUS estándar)
+    if (ble_uuid_cmp(ctxt->chr->uuid, (const ble_uuid_t *)&NUS_TX_UUID) == 0) {
+        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+            return BLE_ATT_ERR_READ_NOT_PERMITTED;
         }
-    },
-    { 0 }
-};
+    }
 
+    return BLE_ATT_ERR_UNLIKELY;
+}
+
+// ---------------------------------------------------------------------------
+//  HELPER PARA INICIALIZAR ESTRUCTURAS (compatible con C++)
+// ---------------------------------------------------------------------------
+static void init_chr(struct ble_gatt_chr_def *chr,
+                     const ble_uuid_t *uuid,
+                     ble_gatt_access_fn *access_cb,
+                     uint16_t *val_handle,
+                     uint16_t flags)
+{
+    memset(chr, 0, sizeof(*chr));
+    chr->uuid       = uuid;
+    chr->access_cb  = access_cb;
+    chr->arg        = NULL;
+    chr->val_handle = val_handle;
+    chr->flags      = flags;
+    // Campos opcionales ya están a 0/NULL por el memset
+}
+
+// Arrays estáticos (se inicializan en ble_uart_init)
+static struct ble_gatt_chr_def gatt_uart_chars[3];
+static struct ble_gatt_svc_def gatt_uart_svc[2];
 
 // ---------------------------------------------------------------------------
 //  GAP EVENTOS
 // ---------------------------------------------------------------------------
-
-
+static void start_advertising(void);
 
 static int gap_event_handler(struct ble_gap_event *event, void *arg)
 {
     switch (event->type) {
 
-        case BLE_GAP_EVENT_CONNECT: {
-            ESP_LOGI(TAG, "Conectado");
+        case BLE_GAP_EVENT_CONNECT:
+            if (event->connect.status == 0) {
+                ESP_LOGI(TAG, "Conectado");
+                conn_handle_global = event->connect.conn_handle;
+            } else {
+                ESP_LOGE(TAG, "Error de conexión: %d", event->connect.status);
+                start_advertising();
+            }
             break;
-        }
 
-        case BLE_GAP_EVENT_DISCONNECT: {
+        case BLE_GAP_EVENT_DISCONNECT:
             ESP_LOGI(TAG, "Desconectado, reiniciando advertising");
+            conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
             start_advertising();
             break;
-        }
-    }
 
+        case BLE_GAP_EVENT_SUBSCRIBE:
+            ESP_LOGI(TAG, "Subscribe: conn=%d, notify=%d",
+                     event->subscribe.conn_handle, event->subscribe.cur_notify);
+            break;
+
+        default:
+            break;
+    }
     return 0;
 }
 
-static void start_advertising()
+static void start_advertising(void)
 {
+    struct ble_hs_adv_fields fields;
+    memset(&fields, 0, sizeof(fields));
+
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+
+    const char *name = "ESP32-NUS";
+    fields.name = (uint8_t*)name;
+    fields.name_len = strlen(name);
+    fields.name_is_complete = 1;
+
+    int rc = ble_gap_adv_set_fields(&fields);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error en adv_set_fields rc=%d", rc);
+        return;
+    }
+
     struct ble_gap_adv_params adv_params;
     memset(&adv_params, 0, sizeof(adv_params));
-
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
-    // Intervalos válidos (100 ms)
-    adv_params.itvl_min = 0x00A0;
-    adv_params.itvl_max = 0x00A0;
-
-    int rc = ble_gap_adv_start(
-        0,
-        NULL,
-        BLE_HS_FOREVER,
-        &adv_params,
-        gap_event_handler,
-        NULL
-    );
-
-    ESP_LOGI(TAG, "Advertising start rc=%d", rc);
+    rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
+                           &adv_params, gap_event_handler, NULL);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error en ble_gap_adv_start rc=%d", rc);
+    } else {
+        ESP_LOGI(TAG, "Advertising iniciado");
+    }
 }
 
 // ---------------------------------------------------------------------------
-//  INICIALIZACIÓN
+//  CALLBACKS DEL HOST (sin lambdas)
 // ---------------------------------------------------------------------------
+static void ble_app_on_sync(void)
+{
+    ESP_LOGI(TAG, "BLE sync OK");
+    ble_hs_id_infer_auto(0, &own_addr_type);
+    start_advertising();
+}
 
+static void ble_app_on_reset(int reason)
+{
+    ESP_LOGE(TAG, "BLE reset: reason=%d", reason);
+}
+
+static void ble_host_task(void *param)
+{
+    ESP_LOGI(TAG, "BLE Host Task iniciado");
+    nimble_port_run();
+    nimble_port_freertos_deinit();
+}
+
+// ---------------------------------------------------------------------------
+//  HANDLER INTERNO QUE LLAMA A process_commands()
+// ---------------------------------------------------------------------------
 static void ble_rx_handler(const char* data, int len)
 {
     char cmd[256];
-
     int n = (len < 255) ? len : 255;
     memcpy(cmd, data, n);
     cmd[n] = '\0';
@@ -161,55 +214,101 @@ static void ble_rx_handler(const char* data, int len)
     process_commands(CMD_SRC_BT, cmd, ' ', '=', -1);
 }
 
-
+// ---------------------------------------------------------------------------
+//  INICIALIZACIÓN
+// ---------------------------------------------------------------------------
 void ble_uart_init()
 {
     ESP_LOGI(TAG, "Inicializando NimBLE UART...");
 
+    // 1) Construir tablas GATT (C++ friendly)
+    init_chr(&gatt_uart_chars[0],
+             (const ble_uuid_t *)&NUS_RX_UUID,
+             ble_uart_access_cb,
+             &nus_rx_handle,
+             BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP);
+
+    init_chr(&gatt_uart_chars[1],
+             (const ble_uuid_t *)&NUS_TX_UUID,
+             ble_uart_access_cb,
+             &nus_tx_handle,
+             BLE_GATT_CHR_F_NOTIFY);
+
+    memset(&gatt_uart_chars[2], 0, sizeof(gatt_uart_chars[2])); // terminador
+
+    memset(&gatt_uart_svc[0], 0, sizeof(gatt_uart_svc[0]));
+    gatt_uart_svc[0].type            = BLE_GATT_SVC_TYPE_PRIMARY;
+    gatt_uart_svc[0].uuid            = (const ble_uuid_t *)&NUS_SERVICE_UUID;
+    gatt_uart_svc[0].includes        = NULL;
+    gatt_uart_svc[0].characteristics = gatt_uart_chars;
+
+    memset(&gatt_uart_svc[1], 0, sizeof(gatt_uart_svc[1])); // terminador
+
+    // 2) Inicializar stack NimBLE
     nimble_port_init();
 
+    // 3) Servicios básicos
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
+    // 4) Callbacks del host
+    ble_hs_cfg.gatts_register_cb = ble_gatts_register_cb;
+    ble_hs_cfg.reset_cb          = ble_app_on_reset;
+    ble_hs_cfg.sync_cb           = ble_app_on_sync;
+    ble_hs_cfg.store_status_cb   = ble_store_util_status_rr;
+
+    // 5) Nombre del dispositivo
+    ble_svc_gap_device_name_set("ESP32-NUS");
+
+    // 6) Registrar servicio NUS
     int rc = ble_gatts_count_cfg(gatt_uart_svc);
-    if (rc != 0) ESP_LOGE(TAG, "count_cfg error %d", rc);
+    ESP_LOGI(TAG, "count_cfg rc=%d", rc);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error en count_cfg");
+        return;
+    }
 
     rc = ble_gatts_add_svcs(gatt_uart_svc);
-    if (rc != 0) ESP_LOGE(TAG, "add_svcs error %d", rc);
+    ESP_LOGI(TAG, "add_svcs rc=%d", rc);
+    if (rc != 0) {
+        ESP_LOGE(TAG, "Error en add_svcs");
+        return;
+    }
 
-    ble_hs_cfg.sync_cb = []() {
-        ESP_LOGI(TAG, "BLE sync OK");
-        start_advertising();
-    };
-
+    // 7) Callback de recepción de la aplicación
     ble_uart_set_rx_callback(ble_rx_handler);
 
-    nimble_port_freertos_init([](void*) { nimble_port_run(); });
-}
+    // 8) Arrancar tarea del host
+    nimble_port_freertos_init(ble_host_task);
 
+    ESP_LOGI(TAG, "NimBLE inicializado");
+}
 
 // ---------------------------------------------------------------------------
 //  ENVÍO DE DATOS (Notify)
 // ---------------------------------------------------------------------------
-
 void ble_uart_send(const char* msg)
 {
-    ESP_LOGI(TAG, "Enviando notify: %s", msg);
-    if (!nus_tx_handle) {
-        ESP_LOGE(TAG, "TX handle no inicializado");
+    if (conn_handle_global == BLE_HS_CONN_HANDLE_NONE || !nus_tx_handle) {
+        ESP_LOGW(TAG, "No conectado o TX no inicializado");
         return;
     }
 
+    ESP_LOGI(TAG, "Enviando notify: %s", msg);
+
     struct os_mbuf *om = ble_hs_mbuf_from_flat(msg, strlen(msg));
-    int rc = ble_gatts_notify_custom(0, nus_tx_handle, om);
+    if (!om) {
+        ESP_LOGE(TAG, "Error asignando mbuf");
+        return;
+    }
+
+    int rc = ble_gatts_notify_custom(conn_handle_global, nus_tx_handle, om);
     ESP_LOGI(TAG, "Resultado notify rc=%d", rc);
 }
 
-
 // ---------------------------------------------------------------------------
-//  CALLBACK DE RECEPCIÓN
+//  REGISTRAR CALLBACK DE RECEPCIÓN
 // ---------------------------------------------------------------------------
-
 void ble_uart_set_rx_callback(ble_rx_callback_t cb)
 {
     g_rx_callback = cb;

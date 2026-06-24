@@ -317,6 +317,7 @@ void app_task(void *pv)
     // ------------------------------------------------------------
     // FASE 7 — Scheduler + servicios del proyecto
     // ------------------------------------------------------------
+    //ble_uart_init(); //arranque bluetooth
     miTS_init();
 
     sched_register_task_60(task_60);
@@ -341,7 +342,7 @@ void app_task(void *pv)
 
     //ble_uart_init();
     //ble_uart_set_rx_callback(ble_rx_handler);
-    LOGI(TAG, "Bluetooth iniciado");
+    //LOGI(TAG, "Bluetooth iniciado");
     LOGI(TAG, "Fin Init. Heap libre: %d", esp_get_free_heap_size());
 
     // ------------------------------------------------------------
