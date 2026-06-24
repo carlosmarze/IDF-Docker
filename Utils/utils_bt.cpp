@@ -8,7 +8,6 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 
-//#include "utils_logger.h"
 #include "utils_cmd_processor.h"
 
 static const char* TAG = "BLE_UART";
@@ -27,6 +26,9 @@ static const ble_uuid128_t NUS_RX_UUID =
 
 static const ble_uuid128_t NUS_TX_UUID =
     BLE_UUID128_INIT(0x6E,0x40,0x00,0x03,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
+
+static void start_advertising();
+static int gap_event_handler(struct ble_gap_event *event, void *arg);
 
 
 // ---------------------------------------------------------------------------
@@ -59,46 +61,47 @@ static int ble_uart_tx_handler(uint16_t conn_handle,
 
 
 // ---------------------------------------------------------------------------
-//  DEFINICIÓN DEL SERVICIO NUS (C++ COMPATIBLE)
+//  DEFINICIÓN DEL SERVICIO NUS
 // ---------------------------------------------------------------------------
 
 static const struct ble_gatt_svc_def gatt_uart_svc[] = {
     {
-        BLE_GATT_SVC_TYPE_PRIMARY,      // type
-        &NUS_SERVICE_UUID.u,            // uuid
-        NULL,                           // includes
+        BLE_GATT_SVC_TYPE_PRIMARY,
+        &NUS_SERVICE_UUID.u,
+        NULL,
         (struct ble_gatt_chr_def[]) {
             {
-                &NUS_RX_UUID.u,          // uuid
-                ble_uart_rx_handler,     // access_cb
-                NULL,                    // arg
-                NULL,                    // descriptors
-                BLE_GATT_CHR_F_WRITE,    // flags
-                0,                       // min_key_size
-                &nus_rx_handle,          // val_handle
-                NULL                     // cpfd
+                &NUS_RX_UUID.u,
+                ble_uart_rx_handler,
+                NULL,
+                NULL,
+                BLE_GATT_CHR_F_WRITE,
+                0,
+                &nus_rx_handle,
+                NULL
             },
             {
-                &NUS_TX_UUID.u,          // uuid
-                ble_uart_tx_handler,     // access_cb
-                NULL,                    // arg
-                NULL,                    // descriptors
-                BLE_GATT_CHR_F_NOTIFY,   // flags
-                0,                       // min_key_size
-                &nus_tx_handle,          // val_handle
-                NULL                     // cpfd
+                &NUS_TX_UUID.u,
+                ble_uart_tx_handler,
+                NULL,
+                NULL,
+                BLE_GATT_CHR_F_NOTIFY,
+                0,
+                &nus_tx_handle,
+                NULL
             },
-            { 0 } // terminador de características
+            { 0 }
         }
     },
-    { 0 } // terminador de servicios
+    { 0 }
 };
-
 
 
 // ---------------------------------------------------------------------------
 //  GAP EVENTOS
 // ---------------------------------------------------------------------------
+
+
 
 static int gap_event_handler(struct ble_gap_event *event, void *arg)
 {
@@ -109,25 +112,9 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg)
             break;
         }
 
-        case BLE_GAP_EVENT_DISCONNECT:{
-        
+        case BLE_GAP_EVENT_DISCONNECT: {
             ESP_LOGI(TAG, "Desconectado, reiniciando advertising");
-
-            // Declaración válida en C++
-            struct ble_gap_adv_params adv_params;
-            memset(&adv_params, 0, sizeof(adv_params));
-
-            adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-            adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-
-            ble_gap_adv_start(
-                0,                  // own address type
-                NULL,               // no peer address
-                BLE_HS_FOREVER,     // duración
-                &adv_params,        // parámetros válidos
-                gap_event_handler,  // callback GAP
-                NULL                // arg
-            );
+            start_advertising();
             break;
         }
     }
@@ -135,11 +122,34 @@ static int gap_event_handler(struct ble_gap_event *event, void *arg)
     return 0;
 }
 
+static void start_advertising()
+{
+    struct ble_gap_adv_params adv_params;
+    memset(&adv_params, 0, sizeof(adv_params));
 
+    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+
+    // Intervalos válidos (100 ms)
+    adv_params.itvl_min = 0x00A0;
+    adv_params.itvl_max = 0x00A0;
+
+    int rc = ble_gap_adv_start(
+        0,
+        NULL,
+        BLE_HS_FOREVER,
+        &adv_params,
+        gap_event_handler,
+        NULL
+    );
+
+    ESP_LOGI(TAG, "Advertising start rc=%d", rc);
+}
 
 // ---------------------------------------------------------------------------
 //  INICIALIZACIÓN
 // ---------------------------------------------------------------------------
+
 static void ble_rx_handler(const char* data, int len)
 {
     char cmd[256];
@@ -148,7 +158,6 @@ static void ble_rx_handler(const char* data, int len)
     memcpy(cmd, data, n);
     cmd[n] = '\0';
 
-    // Llamada directa a tu parser
     process_commands(CMD_SRC_BT, cmd, ' ', '=', -1);
 }
 
@@ -170,16 +179,9 @@ void ble_uart_init()
 
     ble_hs_cfg.sync_cb = []() {
         ESP_LOGI(TAG, "BLE sync OK");
-
-        struct ble_gap_adv_params adv_params;
-        adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-        adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-
-        ble_gap_adv_start(0, NULL, BLE_HS_FOREVER,
-                          &adv_params,
-                          gap_event_handler, NULL);
+        start_advertising();
     };
-    // REGISTRO AUTOMÁTICO DEL CALLBACK
+
     ble_uart_set_rx_callback(ble_rx_handler);
 
     nimble_port_freertos_init([](void*) { nimble_port_run(); });
@@ -207,4 +209,3 @@ void ble_uart_set_rx_callback(ble_rx_callback_t cb)
 {
     g_rx_callback = cb;
 }
-
