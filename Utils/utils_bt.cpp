@@ -23,7 +23,7 @@ static const ble_uuid128_t NUS_SERVICE_UUID =
 
 static const ble_uuid128_t NUS_RX_UUID =
     BLE_UUID128_INIT(0x6E,0x40,0x00,0x02,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
-
+//el que aparece en el nrf es el big endian de esto: 9ecadc24-0ee5-a9e0-93f3-a3b50300406e
 static const ble_uuid128_t NUS_TX_UUID =
     BLE_UUID128_INIT(0x6E,0x40,0x00,0x03,0xB5,0xA3,0xF3,0x93,0xE0,0xA9,0xE5,0x0E,0x24,0xDC,0xCA,0x9E);
 
@@ -194,10 +194,15 @@ void ble_uart_init()
 
 void ble_uart_send(const char* msg)
 {
-    if (!nus_tx_handle) return;
+    ESP_LOGI(TAG, "Enviando notify: %s", msg);
+    if (!nus_tx_handle) {
+        ESP_LOGE(TAG, "TX handle no inicializado");
+        return;
+    }
 
     struct os_mbuf *om = ble_hs_mbuf_from_flat(msg, strlen(msg));
-    ble_gatts_notify_custom(0, nus_tx_handle, om);
+    int rc = ble_gatts_notify_custom(0, nus_tx_handle, om);
+    ESP_LOGI(TAG, "Resultado notify rc=%d", rc);
 }
 
 
