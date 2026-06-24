@@ -21,6 +21,7 @@ typedef enum {
     CMD_SRC_UART = 0,
     CMD_SRC_MQTT,
     CMD_SRC_WEB,
+    CMD_SRC_BT,
     CMD_SRC_FILE,
     CMD_SRC_SYSTEM
 } cmd_source_t;

@@ -20,6 +20,7 @@
 #include "utils_config.h"
 #include "utils_logger.h"
 #include "utils_mqtt.h"           // AÑADIDO: para publicar respuesta
+#include "utils_bt.h"           // AÑADIDO: para publicar respuesta
 #include "MisVariablesProyecto.h" // AÑADIDO: para SensorID
 
 static const char *TAG = "CMD";
@@ -77,7 +78,7 @@ bool CommandDispatcher::submit(cmd_source_t src, const char *text) {
 }
 
 void CommandDispatcher::start() {
-    xTaskCreate(taskEntry, "disp_task", 4096, this, 5, NULL);
+    xTaskCreate(taskEntry, "disp_task", 8192, this, 5, NULL);
 }
 
 void CommandDispatcher::taskEntry(void *arg) {
@@ -189,6 +190,12 @@ void CommandDispatcher::dispatcherTask() {
                 ESP_LOGW(TAG, "No se pudo enviar respuesta Web: Server nulo o FD -1");
                 ESP_LOGI(TAG, "Respuesta (sin destino): %s", respuesta.c_str());
             }
+        }
+        else if (m.src == CMD_SRC_BT) {
+
+            ble_uart_send(respuesta.c_str());
+            ESP_LOGI(TAG, "Respuesta enviada por BLE UART");
+
         }
         else {
             printf("\r\n> %s\r\n", respuesta.c_str()); 

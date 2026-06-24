@@ -17,6 +17,7 @@ idf_component_register(
         utils_config.cpp
         utils_cmd_webupdate.cpp
         utils_sched.cpp
+        utils_bt.cpp
         utils_events.cpp
           
     INCLUDE_DIRS "."
@@ -29,6 +30,7 @@ idf_component_register(
         freertos        
         log  
         cjson # idf.py add-dependency "espressif/cjson^1.0.0"
+        bt
         littlefs
         esp_https_ota
         esp_http_client

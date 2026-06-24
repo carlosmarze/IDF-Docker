@@ -21,6 +21,7 @@ idf_component_register(
         "mqtt"
         "littlefs"
         "cjson"
+        "bt"
         #
         #"esp_http_client" 
         #"app_update" 

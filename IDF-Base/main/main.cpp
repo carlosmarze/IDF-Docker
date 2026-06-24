@@ -36,6 +36,7 @@
 #include "utils_logger.h"
 #include "utils_sched.h"
 #include "utils_events.h"
+#include "utils_bt.h"
 #include "sched_tasks.h"
 #include "project_tasks.h"
 #include "MisVariablesProyecto.h"
@@ -334,12 +335,18 @@ void app_task(void *pv)
     if(autowebupdate){
         process_commands(CMD_SRC_SYSTEM, "webupdate", ' ', ','); //baja updates de archivos del sensor desde el servidor web, como config.txt o cualquier otro archivo que se quiera actualizar remotamente sin necesidad de hacer una OTA completa, y lo hace al iniciar el scheduler para que los archivos estén actualizados antes de que las tareas del scheduler empiecen a ejecutarse, y así minimizar riesgos de fallos en las tareas del scheduler por archivos desactualizados o con errores que hayan sido corregidos en el servidor web. Este comando también se puede ejecutar manualmente en cualquier momento para forzar una actualización de archivos desde el servidor web, y así corregir cualquier posible error o actualizar la configuración sin necesidad de hacer una OTA completa.
     }
-    
-    ESP_LOGI("APP_MAIN", "Fin Init. Heap libre: %d", esp_get_free_heap_size());
+    // ------------------------------------------------------------
+    // FASE 9 — arranque Bluetooth
+    // ------------------------------------------------------------
+
+    ble_uart_init();
+    //ble_uart_set_rx_callback(ble_rx_handler);
+    LOGI(TAG, "Bluetooth iniciado");
+    LOGI(TAG, "Fin Init. Heap libre: %d", esp_get_free_heap_size());
 
     // ------------------------------------------------------------
     // FASE 8 — arranque de tareas particulares del proyecto (tareas de ejemplo, se pueden eliminar o modificar según las necesidades del proyecto)
-        // ------------------------------------------------------------
+    // ------------------------------------------------------------
     start_project_tasks(); //tareas particulares del proyecto, como lectura de sensores, procesamiento de datos, etc. Se arrancan después de iniciar el scheduler para que queden bajo su control y puedan usar sus mecanismos de temporización y gestión de tareas, y así tener un mejor control sobre su ejecución y evitar bloqueos o retrasos en el arranque del sistema. Estas tareas son solo de ejemplo, se pueden eliminar o modificar según las necesidades del proyecto, y se
     // ------------------------------------------------------------
     // FASE 9 — Loop principal
