@@ -340,9 +340,10 @@ void app_task(void *pv)
     // FASE 9 — arranque Bluetooth
     // ------------------------------------------------------------
 
+    //LOGI(TAG, "Iniciando Bluetooth. Heap libre: %d", esp_get_free_heap_size());
     //ble_uart_init();
     //ble_uart_set_rx_callback(ble_rx_handler);
-    //LOGI(TAG, "Bluetooth iniciado");
+    
     LOGI(TAG, "Fin Init. Heap libre: %d", esp_get_free_heap_size());
 
     // ------------------------------------------------------------
@@ -356,6 +357,7 @@ void app_task(void *pv)
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(60000));
         if(!btoothactivo) {
+            LOGI(TAG, "Iniciando Bluetooth. Heap libre: %d", esp_get_free_heap_size());
             ble_uart_init();
             btoothactivo = true;
         }

@@ -15,6 +15,7 @@ static const char* TAG = "BLE_UART";
 // ---------------------------------------------------------------------------
 //  VARIABLES DE ESTADO
 // ---------------------------------------------------------------------------
+static bool ble_is_running = false;
 static uint16_t nus_rx_handle = 0;
 static uint16_t nus_tx_handle = 0;
 static uint16_t conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
@@ -280,30 +281,49 @@ void ble_uart_init()
 
     // 8) Arrancar tarea del host
     nimble_port_freertos_init(ble_host_task);
-
+    ble_is_running = true;
     ESP_LOGI(TAG, "NimBLE inicializado");
 }
 
+
 // ---------------------------------------------------------------------------
-//  ENVÍO DE DATOS (Notify)
+//  ENVÍO DE DATOS (Notify) - Dividido en chunks de 100 bytes
 // ---------------------------------------------------------------------------
 void ble_uart_send(const char* msg)
 {
-    if (conn_handle_global == BLE_HS_CONN_HANDLE_NONE || !nus_tx_handle) {
+    if (conn_handle_global == BLE_HS_CONN_HANDLE_NONE || !nus_tx_handle || !ble_is_running) {
         ESP_LOGW(TAG, "No conectado o TX no inicializado");
         return;
     }
 
-    ESP_LOGI(TAG, "Enviando notify: %s", msg);
+    int total_len = strlen(msg);
+    const int CHUNK_SIZE = 100; // Tamaño seguro para la mayoría de clientes BLE
+    int offset = 0;
 
-    struct os_mbuf *om = ble_hs_mbuf_from_flat(msg, strlen(msg));
-    if (!om) {
-        ESP_LOGE(TAG, "Error asignando mbuf");
-        return;
+    ESP_LOGI(TAG, "Enviando notify: %d bytes en chunks de %d", total_len, CHUNK_SIZE);
+
+    while (offset < total_len) {
+        int chunk_len = (total_len - offset) < CHUNK_SIZE ? (total_len - offset) : CHUNK_SIZE;
+        
+        struct os_mbuf *om = ble_hs_mbuf_from_flat(msg + offset, chunk_len);
+        if (!om) {
+            ESP_LOGE(TAG, "Error asignando mbuf en offset %d", offset);
+            return;
+        }
+
+        int rc = ble_gatts_notify_custom(conn_handle_global, nus_tx_handle, om);
+        if (rc != 0) {
+            ESP_LOGE(TAG, "Error en notify rc=%d (offset=%d)", rc, offset);
+            return;
+        }
+
+        offset += chunk_len;
+        
+        // Pequeña pausa para evitar saturar el stack BLE
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    int rc = ble_gatts_notify_custom(conn_handle_global, nus_tx_handle, om);
-    ESP_LOGI(TAG, "Resultado notify rc=%d", rc);
+    ESP_LOGI(TAG, "Notify completado: %d bytes enviados", total_len);
 }
 
 // ---------------------------------------------------------------------------
@@ -312,4 +332,66 @@ void ble_uart_send(const char* msg)
 void ble_uart_set_rx_callback(ble_rx_callback_t cb)
 {
     g_rx_callback = cb;
+}
+// ---------------------------------------------------------------------------
+//  Stop BLE antes de OTA y reinicio posterior, porque si no, da error de SSL
+// ---------------------------------------------------------------------------
+
+
+void ble_stop_for_ota()
+{
+    if (!ble_is_running) {
+        ESP_LOGW(TAG, "BLE ya está detenido");
+        return;
+    }
+    
+    ESP_LOGI(TAG, "Deteniendo NimBLE para OTA...");
+    
+    // 1) Detener advertising
+    ble_gap_adv_stop();
+    
+    // 2) Desconectar cliente si está conectado
+    if (conn_handle_global != BLE_HS_CONN_HANDLE_NONE) {
+        ble_gap_terminate(conn_handle_global, BLE_ERR_REM_USER_CONN_TERM);
+        conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
+        vTaskDelay(pdMS_TO_TICKS(100)); // Esperar desconexión
+    }
+    
+    // 3) Detener el host (la tarea termina)
+    nimble_port_stop();
+    
+    // 4) Esperar a que la tarea del host termine realmente
+    vTaskDelay(pdMS_TO_TICKS(200));
+    
+    // 5) Liberar recursos
+    nimble_port_deinit();
+    
+    ble_is_running = false;
+    
+    ESP_LOGI(TAG, "NimBLE detenido. Heap libre: %u bytes", esp_get_free_heap_size());
+}
+
+void ble_restart_after_ota()
+{
+    if (ble_is_running) {
+        ESP_LOGW(TAG, "BLE ya está corriendo");
+        return;
+    }
+    
+    ESP_LOGI(TAG, "Reiniciando NimBLE después de OTA...");
+    
+    // Resetear handles (se regenerarán al registrar servicios)
+    nus_rx_handle = 0;
+    nus_tx_handle = 0;
+    
+    // Llamar a la misma función de inicialización
+    ble_uart_init();
+    
+    ble_is_running = true;
+    
+    ESP_LOGI(TAG, "NimBLE reiniciado. Heap libre: %u bytes", esp_get_free_heap_size());
+}
+
+bool ble_status() {
+    return ble_is_running;
 }
