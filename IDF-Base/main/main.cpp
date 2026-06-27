@@ -353,14 +353,10 @@ void app_task(void *pv)
     // ------------------------------------------------------------
     // FASE 9 — Loop principal
     // ------------------------------------------------------------
-    bool btoothactivo = false;
+    //bool btoothactivo = false;
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(60000));
-        if(!btoothactivo) {
-            LOGI(TAG, "Iniciando Bluetooth. Heap libre: %d", esp_get_free_heap_size());
-            ble_uart_init();
-            btoothactivo = true;
-        }
+        
         if (!g_ota_en_progreso)
             ESP_LOGI(TAG, "Main loop activo. Heap libre: %u", esp_get_free_heap_size());
     }

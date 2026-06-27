@@ -14,7 +14,7 @@
 #include "utils_logger.h"
 #include "utils_config.h" // Para g_ota_en_progreso
 #include "utils_mqtt.h" // Para mqtt_app_stop() y mqtt_app_start()
-#include "utils_bt.h"
+
 
 static const char *TAG = "OTA_WORKER";
 static QueueHandle_t s_ota_q = NULL;
@@ -121,11 +121,7 @@ static void ota_worker_task(void *arg) {
         xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
         
         ESP_LOGI(TAG, "Iniciando chequeo OTA: %s", job.url);
-        bool ble_previo = ble_status();
-        if (ble_previo) {
-            ESP_LOGI(TAG, "Deteniendo BLE");
-            ble_stop_for_ota();
-        }
+        
         esp_http_client_config_t config = {};
         config.url = job.url;
         config.timeout_ms = 15000;
@@ -139,10 +135,7 @@ static void ota_worker_task(void *arg) {
             //ESP_LOGE(TAG, "Error: No se pudo conectar al servidor");
             esp_http_client_cleanup(client);
             g_ota_en_progreso = false;
-            if(ble_previo) {
-                ESP_LOGI(TAG, "re Arrancando BLE");
-                ble_restart_after_ota();
-            }
+            
             continue; 
         }
 
@@ -227,19 +220,13 @@ static void ota_worker_task(void *arg) {
             g_ota_en_progreso = false;
             // IMPORTANTE: Si detuvimos el MQTT, hay que volver a arrancarlo
             
-            if (ble_previo) { // si BLE estaba activo, lo rearrancamos
-                ESP_LOGI(TAG, "rearrancando BLE");
-                ble_restart_after_ota();;
-            }
+            
             ESP_LOGI(TAG, "rearrancando MQTT");
             mqtt_app_start();
         }
         
         LOGI(TAG, "Ciclo OTA terminado. Esperando..."); 
-        if(ble_previo) {
-            ESP_LOGI(TAG, "re Arrancando BLE");
-            ble_restart_after_ota();
-        }
+        
         //write_system_log(TAG, log_msg.c_str());
         //ESP_LOGI(TAG,  "%s", log_msg.c_str());
         //ESP_LOGI(TAG, "Ciclo OTA terminado. Esperando...");

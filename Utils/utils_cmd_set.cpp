@@ -23,6 +23,7 @@
 #include "utils_config.h" //para save_wifi_network
 #include "utils_wifi.h" //para save_wifi_network
 #include "utils_mqtt.h"
+#include "utils_bt.h"
 
 #include "MisVariablesProyecto.h"
 
@@ -148,6 +149,52 @@ public:
         return "OK: Reinicio programado en " + std::to_string(delay_mins) + " minutos.";
     }
 };
+
+class StartBLE : public Command {
+public:
+    const char* name() const override { return "ble"; }
+    const char* usage() const override { return "<on/off> - Arranca BT. off=hace reboot"; }
+    int minArgs() const override { return 1; }
+
+    std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
+        const std::string &mode = args[0];
+        bool on = (strcasecmp(mode.c_str(), "on") == 0);
+        if(on){
+            if(ble_status()) {
+                return "BLE ya está activo";
+            }
+            else {
+                std::string msg = "arrancando BLE";
+                LOGI(TAG, msg.c_str());
+                ble_uart_init();
+                return msg;
+            }
+        }
+        else {
+            LOGI(TAG, "\nReboot para apagar BLE\n");
+            esp_restart();
+        }
+    }
+    
+   
+};
+
+class LedCommandB : public Command {
+public:
+    const char* name() const override { return "set_led"; }
+    const char* usage() const override { return "[nroLed=On/Off] - TBI Setea el estado del LED nroLed"; } // <-- Añadir
+    int minArgs() const override { return 2; }
+    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
+        const std::string &mode = args[0];
+        int gpio = std::stoi(args[1]);
+        bool on = (strcasecmp(mode.c_str(), "on") == 0);
+        ESP_LOGI(TAG, "LED gpio=%d -> %s", gpio, on ? "ON" : "OFF");
+        return "LED set";
+    }
+};
+
+
+
 
 // -----------------------------------------------------------------------------
 // Implementaciones de comandos
@@ -677,6 +724,7 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
     dispatcher.registerCommand(std::make_unique<HelpCommand>(dispatcher)); //necesita dispatcher para listar los comandos disponibles
 
     dispatcher.registerCommand(std::make_unique<CmdReboot>());
+    dispatcher.registerCommand(std::make_unique<StartBLE>());
     dispatcher.registerCommand(std::make_unique<SetMiTSServer>());
     //dispatcher.registerCommand(std::make_unique<CmdFreeHeap>());
     //dispatcher.registerCommand(std::make_unique<HelpCommand>());

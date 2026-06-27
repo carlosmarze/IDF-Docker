@@ -220,8 +220,8 @@ static void ble_rx_handler(const char* data, int len)
 // ---------------------------------------------------------------------------
 void ble_uart_init()
 {
-    ESP_LOGI(TAG, "Inicializando NimBLE UART...");
-
+    //ESP_LOGI(TAG, "Inicializando NimBLE UART...");
+    ESP_LOGI(TAG, "Iniciando NimBLE UART. Heap libre: %d", esp_get_free_heap_size());
     // 1) Construir tablas GATT (C++ friendly)
     init_chr(&gatt_uart_chars[0],
              (const ble_uuid_t *)&NUS_RX_UUID,
@@ -283,6 +283,7 @@ void ble_uart_init()
     nimble_port_freertos_init(ble_host_task);
     ble_is_running = true;
     ESP_LOGI(TAG, "NimBLE inicializado");
+    ESP_LOGI(TAG, "Luegp de inicio NimBLE. Heap libre: %d", esp_get_free_heap_size());
 }
 
 
