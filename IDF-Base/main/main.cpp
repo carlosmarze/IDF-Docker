@@ -18,6 +18,7 @@
 #include "esp_crt_bundle.h"
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
+#include "esp_heap_caps.h"
 
 // Utils y módulos del proyecto
 #include "utils_wifi.h"
@@ -218,6 +219,19 @@ void app_task(void *pv)
     
     //std::string log_msg = "\n\nINICIANDO SISTEMA - VERSION: " + std::string(version_info) + ", SensorID: " + std::to_string(SensorID) + ", Heap Libre: " + std::to_string(esp_get_free_heap_size()) + " bytes";
     LOGI(TAG, "\n\nINICIANDO SISTEMA - VERSION: %s, SensorID: %d, Heap Libre: %u bytes", version_info, SensorID, esp_get_free_heap_size());  
+    
+    ESP_LOGI("HW", "=== Hardware Info ===");
+    
+    // Mostrar heap interno
+    size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+    size_t internal_total = heap_caps_get_total_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+    
+    ESP_LOGI("HW", "Heap interno total: %u KB", internal_total / 1024);
+    ESP_LOGI("HW", "Heap interno libre: %u KB", internal_free / 1024);
+    
+    ESP_LOGI("HW", "=====================");
+
+
     //write_system_log("APP_MAIN", log_msg.c_str());
     //ESP_LOGI("APP_MAIN", "%s", log_msg.c_str());
 
@@ -353,14 +367,16 @@ void app_task(void *pv)
     // ------------------------------------------------------------
     // FASE 9 — Loop principal
     // ------------------------------------------------------------
-    bool btoothactivo = false;
+    if(!wifi_ready) {
+            LOGI(TAG, "No hay Wifi. Iniciando Bluetooth. Heap libre: %d", esp_get_free_heap_size());
+            ble_uart_init();
+           
+        }
+   
+
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(60000));
-        if(!btoothactivo) {
-            LOGI(TAG, "Iniciando Bluetooth. Heap libre: %d", esp_get_free_heap_size());
-            ble_uart_init();
-            btoothactivo = true;
-        }
+        
         if (!g_ota_en_progreso)
             ESP_LOGI(TAG, "Main loop activo. Heap libre: %u", esp_get_free_heap_size());
     }
