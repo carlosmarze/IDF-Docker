@@ -9,6 +9,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 
 #include "utils_cmd_processor.h"
+#include "utils_config.h"
 
 static const char* TAG = "BLE_UART";
 
@@ -155,7 +156,7 @@ static void start_advertising(void)
 
     fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
 
-    const char *name = "ESP32-NUS";
+    const char *name = blename; //Asigno el nombre puesto en config
     fields.name = (uint8_t*)name;
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
@@ -259,7 +260,7 @@ void ble_uart_init()
     ble_hs_cfg.store_status_cb   = ble_store_util_status_rr;
 
     // 5) Nombre del dispositivo
-    ble_svc_gap_device_name_set("ESP32-NUS");
+    ble_svc_gap_device_name_set(blename);
 
     // 6) Registrar servicio NUS
     int rc = ble_gatts_count_cfg(gatt_uart_svc);

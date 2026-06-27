@@ -23,6 +23,7 @@ char mqttpass[24];
 char mqtttopicbase[16];
 char mqttcert[32];
 uint32_t mqttport;
+char blename[16] = "MiESP32-S3";
 
 std::string g_pending_ssid = "";
 std::string g_pending_pass = "";
