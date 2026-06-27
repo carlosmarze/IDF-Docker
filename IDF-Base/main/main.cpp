@@ -269,8 +269,11 @@ void app_task(void *pv)
     // ------------------------------------------------------------
     // FASE 4 — Conexión maestra
     // ------------------------------------------------------------
-    iniciar_proceso_conexion_maestra();
-
+    bool haywifi = iniciar_proceso_conexion_maestra(); //Si no se conecta a ninguna red, retorna false
+    if(!haywifi) {
+        LOGI(TAG, "Arrancando BlueTooth, no hay Wifi");
+        ble_uart_init(); //Arranca Blue tooth
+    }
     // ------------------------------------------------------------
     // FASE 5 — NTP si hay WiFi
     // ------------------------------------------------------------

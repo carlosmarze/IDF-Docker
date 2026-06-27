@@ -15,6 +15,7 @@
 #include "utils_logger.h" // Para logging
 #include "utils_config.h" // Para save_wifi_network
 #include "utils_events.h" // Para dejar eventos en la cola global
+#include "utils_bt.h" //para chequear status wifi
 
 // --- CONFIGURACIÓN DE RED ---
 #define TAG "WIFI_SETUP"
@@ -289,7 +290,12 @@ void wifi_check_task(void *pvParameter) {
         EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
         if (!(bits & WIFI_CONNECTED_BIT)) {
             LOGW(TAG, "WiFi desconectado detectado por watchdog. Reintentando...");
-            iniciar_proceso_conexion_maestra();
+            bool retornoWifi = iniciar_proceso_conexion_maestra();
+            if(ble_status() && retornoWifi) {
+                LOGW(TAG, "WiFi Ok, reboot por bluetooth activo.");
+                esp_restart();
+            }
+            
         }
     }
 }

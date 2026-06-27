@@ -216,7 +216,7 @@ public:
         std::string output = "" ;
         output += "========================================";
         output += "   LISTA DE COMANDOS DISPONIBLES";
-        output += "========================================";
+        output += "========================================\n";
         
         // Recorremos el mapa del dispatcher
         const auto& cmdMap = _dispatcher.getCommands();
