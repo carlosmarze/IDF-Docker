@@ -123,6 +123,12 @@ static bool aplicar_config_linea_directo(const char* linea) {
         LOGI(TAG_CONFIG, "Mqtt port: %u", mqttport);
         return true;
     }
+    if (strncmp(linea, "setblename=", 11) == 0) {
+        strncpy(blename, linea + 11, sizeof(blename) - 1);
+        blename[sizeof(blename) - 1] = '\0';
+        LOGI(TAG_CONFIG, "BlueTooth name: %s", blename);
+        return true;
+    }
     // otros comandos de config que solo setean variables
     
 
