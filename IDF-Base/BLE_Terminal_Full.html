@@ -144,15 +144,22 @@ document.getElementById("sendWifi").onclick = () => {
     const ssid = document.getElementById("ssid").value;
     const pass = document.getElementById("pass").value;
 
-    send(`setssid=${ssid}`);
-    send(`, setwifipass=${pass}`);
+    send(`setwifi ${ssid} ${pass}`);
+
 };
+function clean(x) {
+    return x.replace(/"/g, "").trim();
+}
 
 document.getElementById("sendWifiJson").onclick = () => {
-    const ssid = document.getElementById("ssid").value;
-    const pass = document.getElementById("pass").value;
+    const ssid = clean(document.getElementById("ssid").value);
+    const pass = clean(document.getElementById("pass").value);
 
-    const json = JSON.stringify({ setssid: ssid, setwifipass: pass });
+    const json = JSON.stringify({
+        cmd: "setwifi",
+        args: [ssid, pass]
+    });
+
     send(json);
 };
 
