@@ -20,7 +20,7 @@
 #include "utils_ota_worker.h"
 #include "utils_webs.h"
 #include "utils_logger.h"
-#include "utils_config.h" //para save_wifi_network
+#include "utils_config.h" 
 #include "utils_wifi.h" //para save_wifi_network
 #include "utils_mqtt.h"
 #include "utils_bt.h"
@@ -47,7 +47,7 @@ public:
 
         std::string respuesta = "SensorID seteado a " + std::to_string(SensorID);
         //write_system_log("CONFIG", respuesta.c_str());
-        ESP_LOGI("CONFIG", "%s",respuesta.c_str());
+        ESP_LOGI(TAG, "%s",respuesta.c_str());
         return "OK: Sensor ID seteado.";
     }
 };
@@ -56,7 +56,7 @@ public:
 class SetSSID : public Command {
 public:
     const char* name() const override { return "setssid"; }
-    const char* usage() const override { return "<ssid> - Configura el nombre de la red WiFi"; }
+    const char* usage() const override { return "[ssid] - Configura el nombre de la red WiFi"; }
     int minArgs() const override { return 1; }
 
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
@@ -67,7 +67,7 @@ public:
             save_wifi_network(g_pending_ssid.c_str(), g_pending_pass.c_str());
         }
 
-        ESP_LOGI("CONFIG", "SSID preparado: %s", g_pending_ssid.c_str());
+        ESP_LOGI(TAG, "SSID preparado: %s", g_pending_ssid.c_str());
         return "OK: SSID seteado. Use 'connect' para aplicar o 'setwifipass' si falta la clave.";
     }
 };
@@ -75,7 +75,7 @@ public:
 class SetWifiPass : public Command {
 public:
     const char* name() const override { return "setwifipass"; }
-    const char* usage() const override { return "<password> - Configura la clave del WiFi"; }
+    const char* usage() const override { return "[password] - Configura la clave del WiFi"; }
     int minArgs() const override { return 1; }
 
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
@@ -84,11 +84,28 @@ public:
         // Si ya tenemos el SSID, guardamos en el JSON para que sea persistente
         if (!g_pending_ssid.empty()) {
             save_wifi_network(g_pending_ssid.c_str(), g_pending_pass.c_str());
-            ESP_LOGI("CONFIG", "Red guardada en historial JSON.");
+            ESP_LOGI(TAG, "Red guardada en historial JSON.");
         }
 
-        ESP_LOGI("CONFIG", "Password preparada.");
+        ESP_LOGI(TAG, "Password preparada.");
         return "OK: Password seteada y guardada en historial.";
+    }
+};
+
+
+
+class SetWifi : public Command {
+
+public:
+    const char* name() const override { return "setwifi"; }
+    const char* usage() const override { return "setwifi [ssid] [password] - Configura SSID y clave del WiFi"; }
+    int minArgs() const override { return 2; }
+
+    std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
+        ESP_LOGI(TAG,"Comando setwifi args0=%s, args1=%s", args[0].c_str(), args[1].c_str());
+        save_wifi_network(args[0].c_str(), args[1].c_str());
+
+        return "WiFi guardado correctamente. Reboot para conectar";
     }
 };
 
@@ -96,12 +113,12 @@ public:
 class SetMiTSServer : public Command {
 public: 
     const char* name() const override { return "setmitsserver"; }
-    const char* usage() const override { return "[server] - TBI Setea la variable mitsServer"; } // <-- Añadir
+    const char* usage() const override { return "[server] - Setea la variable mitsServer"; } // <-- Añadir
     int minArgs() const override { return 1; }
 
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
         std::string tsServer = args[0];
-        ESP_LOGI("CONFIG", "Configurando MiTSServer: %s", tsServer.c_str());
+        ESP_LOGI(TAG, "Configurando MiTSServer: %s", tsServer.c_str());
         // Aquí llamas a tu lógica de NVS o WiFi
         return "OK: MiTSServer cambiado";
     }
@@ -234,50 +251,6 @@ public:
 };
 
 
-
-/*class LedCommand : public Command {
-public:
-    const char* name() const override { return "set_led"; }
-    const char* usage() const override { return "[nroLed=On/Off] - TBI Setea el estado del LED nroLed"; } // <-- Añadir
-    int minArgs() const override { return 2; }
-    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
-        const std::string &mode = args[0];
-        int gpio = std::stoi(args[1]);
-        bool on = (strcasecmp(mode.c_str(), "on") == 0);
-        ESP_LOGI(TAG, "LED gpio=%d -> %s", gpio, on ? "ON" : "OFF");
-        return "LED set";
-    }
-};
-*/
-class WifiCommand : public Command {
-private:
-    CommandDispatcher& _dispatcher;
-
-public:
-    WifiCommand(CommandDispatcher& disp) : _dispatcher(disp) {}
-    const char* name() const override { return "set_wifi"; }
-    int minArgs() const override { return 2; }
-    const char* usage() const override { return "set_wifi <ssid> <password>"; }
-
-    std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
-
-        // Llamar a setssid
-        if (auto* cmd1 = _dispatcher.getCommand("setssid")) {
-            cmd1->execute(src, { args[0] });
-        } else {
-            return "Error interno: comando setssid no encontrado";
-        }
-
-        // Llamar a setwifipass
-        if (auto* cmd2 = _dispatcher.getCommand("setwifipass")) {
-            cmd2->execute(src, { args[1] });
-        } else {
-            return "Error interno: comando setwifipass no encontrado";
-        }
-
-        return "WiFi configurado correctamente";
-    }
-};
 
 
 class connectWifi : public Command {
@@ -734,7 +707,7 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
     dispatcher.registerCommand(std::make_unique<SetSensorID>());
     dispatcher.registerCommand(std::make_unique<SetSSID>());
     dispatcher.registerCommand(std::make_unique<SetWifiPass>());
-    dispatcher.registerCommand(std::make_unique<WifiCommand>(dispatcher)); //necesita dispatcher para llamar a los otros dos comandos
+    dispatcher.registerCommand(std::make_unique<SetWifi>()); 
     dispatcher.registerCommand(std::make_unique<WifiScanCommand>());
     dispatcher.registerCommand(std::make_unique<WifiConnectCommand>());
     dispatcher.registerCommand(std::make_unique<connectWifi>());

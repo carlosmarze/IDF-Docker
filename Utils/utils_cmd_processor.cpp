@@ -37,7 +37,7 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
     std::string trimmed = trim(line);
     bool is_json = !trimmed.empty() && trimmed.front() == '{' && trimmed.back() == '}';
 
-    if (is_json) {
+    if (is_json) { //{"cmd": "ota", "arg": {"server": "x", "chunksize": 1024, "timeout": 5000}}
         std::string comando = tokens[0].name;
         std::string args_concat;
 
@@ -55,7 +55,7 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
             }
         }
 
-        //printf("Process_commands: comando='%s' args='%s'\n", comando.c_str(), args_concat.c_str());
+        printf("Process_commands: comando='%s' args='%s'\n", comando.c_str(), args_concat.c_str());
 
         cmd_msg_t msg{};
         msg.src = src;
@@ -82,7 +82,7 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
         snprintf(msg.name, sizeof(msg.name), "%s", tokens[0].name.c_str());
         snprintf(msg.arg, sizeof(msg.arg), "%s", tokens[0].arg.c_str());
 
-        //printf("Process_commands: comando='%s' args='%s'\n", msg.name, msg.arg);
+        printf("Process_commands: comando='%s' args='%s'\n", msg.name, msg.arg);
         if (strcmp(msg.name, "help") == 0 ||
             strcmp(msg.name, "dir") == 0 ||
             strcmp(msg.name, "webupdate") == 0 ||
@@ -103,7 +103,7 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
             args_concat += tokens[i].name;
         }
 
-        //printf("Process_commands: comando='%s' args='%s'\n", comando.c_str(), args_concat.c_str());
+        printf("Process_commands: comando='%s' args='%s'\n", comando.c_str(), args_concat.c_str());
 
         cmd_msg_t msg{};
         msg.src = src;
