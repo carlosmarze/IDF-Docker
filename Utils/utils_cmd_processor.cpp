@@ -25,12 +25,12 @@ static inline std::string trim(const std::string &s) {
 
 void process_commands(cmd_source_t src, const std::string &line, char sep1, char sep2, int client_fd) {
       
-    //printf("Process_commands: Línea cruda: '%s'\n", line.c_str());
+    printf("Process_commands: Source %d Línea cruda: '%s'\n", src, line.c_str());
     ESP_LOGI(TAG, "Stack libre en proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
     auto tokens = parse_lineX(line);
 
     if (tokens.empty()) {
-        printf("Process_commands: línea vacía o inválida\n");
+        printf("Process_commands: línea vacía o inválida Source %d \n", src);
         return;
     }
 
