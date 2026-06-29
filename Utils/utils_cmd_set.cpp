@@ -342,8 +342,20 @@ public:
             }
         }
 
-        //ESP_LOGI(TAG, "OTA job recibido: URL='%s' chunksize=%d reboot=%d",
-          //       url.c_str(), chunk, reboot);
+        // VALIDACIÓN CRÍTICA: Evitar crash si URL está vacía
+        if (url.empty()) {
+            ESP_LOGE(TAG, "OTA: URL vacía. Args recibidos: %s", args[0].c_str());
+            return "Error OTA: URL del servidor no especificada";
+        }
+
+        // Validar que la URL empiece con http:// o https://
+        if (url.find("http://") != 0 && url.find("https://") != 0) {
+            ESP_LOGE(TAG, "OTA: URL inválida: %s", url.c_str());
+            return "Error OTA: URL debe empezar con http:// o https://";
+        }
+
+        ESP_LOGI(TAG, "OTA job: URL='%s' chunk=%d reboot=%d https=%d", url.c_str(), chunk, reboot, httpspar);
+        
         ota_job_t job = {};
         snprintf(job.url, sizeof(job.url), "%s", url.c_str());
         job.reboot_after = reboot;

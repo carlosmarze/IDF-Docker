@@ -114,10 +114,23 @@ static bool process_json_command(cmd_source_t src, const std::string& json_str, 
     snprintf(msg.name, sizeof(msg.name), "%s", cmd_name.c_str());
     
     // Concatenar todos los argumentos
+    // En process_commands, cuando procesas JSON con objeto "arg":
+
+    // Caso: {"cmd":"ota","arg":{"server":"...","chunksize":1024}}
+    // args contiene: ["server=...", "chunksize=1024"]
+    // Debemos enviarlos separados por espacio SIN comillas
+
     std::string full_args;
     for (size_t i = 0; i < args.size(); i++) {
         if (i > 0) full_args += " ";
-        full_args += escape_arg(args[i]);  // ← ESCAPAR AQUÍ
+        
+        // Si el argumento contiene "=", es key=value → NO escapar
+        if (args[i].find('=') != std::string::npos) {
+            full_args += args[i];  // Tal cual: server=https://...
+        } else {
+            // Solo escapar si tiene espacios y NO es key=value
+            full_args += escape_arg(args[i]);
+        }
     }
     snprintf(msg.arg, sizeof(msg.arg), "%s", full_args.c_str());
 
@@ -132,6 +145,14 @@ static bool process_json_command(cmd_source_t src, const std::string& json_str, 
 }
 
 // Función principal de procesamiento de comandos
+// PARSER PRINCIPAL
+// Soporta:
+// {"cmd":"setssid","arg":"DepartamentoJ"}
+// {"cmd":"ota","arg":{"server":"x","chunksize":1024}}  NOTAR que va con arg y {} cuando son argumentos con nombre
+// {"cmd":"setwifi","args":["Departamento J","el departamento"]} NOTAR que va con args y [] cuando es posicional
+// setwifi "Departamento J" "el departamento"
+// ota server=http://x chunksize=2048 reboot=no
+
 void process_commands(cmd_source_t src, const std::string &line, char sep1, char sep2, int client_fd) {
     ESP_LOGI(TAG, "Stack libre en proc: %u bytes", uxTaskGetStackHighWaterMark(NULL));
     printf("Linea cruda: %s", line.c_str());
