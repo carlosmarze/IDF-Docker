@@ -1,7 +1,6 @@
 #include <string>
 #include <vector>
-#include <sstream>
-#include <cctype>
+#include <cJSON.h>
 
 struct ParsedToken {
     std::string name;
@@ -9,321 +8,215 @@ struct ParsedToken {
 };
 
 // ============================================================
-// Helpers
+// 1. PARSER JSON PURO (cJSON)
 // ============================================================
 
-static std::string trimX(const std::string &s) {
-    size_t a = s.find_first_not_of(" \t\r\n");
-    if (a == std::string::npos) return "";
-    size_t b = s.find_last_not_of(" \t\r\n");
-    return s.substr(a, b - a + 1);
-}
-
-static std::string unescapeX(const std::string &s) {
-    std::string out;
-    out.reserve(s.size());
-    bool esc = false;
-
-    for (char c : s) {
-        if (esc) {
-            out.push_back(c);
-            esc = false;
-        } else if (c == '\\') {
-            esc = true;
-        } else {
-            out.push_back(c);
-        }
-    }
-    return out;
-}
-
-static std::string handle_double_double_quotesX(const std::string &s) {
-    std::string out;
-    out.reserve(s.size());
-
-    for (size_t i = 0; i < s.size(); i++) {
-        if (s[i] == '"' && i + 1 < s.size() && s[i+1] == '"') {
-            out.push_back('"');
-            i++;
-        } else {
-            out.push_back(s[i]);
-        }
-    }
-    return out;
-}
-
-static std::string remove_outer_quotesX(const std::string &s) {
-    std::string t = trimX(s);
-
-    if (t.size() >= 2 && t.front() == '"' && t.back() == '"') {
-        std::string inner = t.substr(1, t.size() - 2);
-
-        std::string out;
-        out.reserve(inner.size());
-        bool esc = false;
-
-        for (char c : inner) {
-            if (esc) {
-                out.push_back(c);
-                esc = false;
-            } else if (c == '\\') {
-                esc = true;
-            } else {
-                out.push_back(c);
-            }
-        }
-
-        return out;
-    }
-
-    if (t.size() >= 2 && t.front() == '\'' && t.back() == '\'') {
-        return t.substr(1, t.size() - 2);
-    }
-
-    if (!t.empty() && t.front() == '"') {
-        return t.substr(1);
-    }
-
-    return unescapeX(t);
-}
-
-// ============================================================
-// JSON-like detection
-// ============================================================
-
-static bool is_json_likeX(const std::string &s) {
-    std::string t = trimX(s);
-    return !t.empty() && t.front() == '{' && t.back() == '}';
-}
-
-// ============================================================
-// JSON-like parser EXTENDIDO
-// ============================================================
-
-static std::vector<ParsedToken> parse_json_likeX(const std::string &line) {
+static std::vector<ParsedToken> parse_json(const std::string& line) {
     std::vector<ParsedToken> out;
 
-    std::string s = trimX(line.substr(1, line.size() - 2));
+    cJSON* root = cJSON_Parse(line.c_str());
+    if (!root) return out;
 
-    std::vector<std::string> pairs;
-    std::string cur;
-    bool in_single = false, in_double = false, esc = false;
-
-    for (char c : s) {
-        if (esc) { cur.push_back(c); esc = false; continue; }
-        if (c == '\\') { esc = true; cur.push_back(c); continue; }
-        if (c == '"' && !in_single) in_double = !in_double;
-        if (c == '\'' && !in_double) in_single = !in_single;
-
-        if (c == ',' && !in_single && !in_double) {
-            pairs.push_back(trimX(cur));
-            cur.clear();
-        } else {
-            cur.push_back(c);
-        }
-    }
-    if (!cur.empty()) pairs.push_back(trimX(cur));
-
-    std::string comando;
-    std::string arg_raw;
-
-    for (auto &p : pairs) {
-        size_t pos = p.find(':');
-        if (pos == std::string::npos) continue;
-
-        std::string key = trimX(p.substr(0, pos));
-        std::string val = trimX(p.substr(pos + 1));
-
-        key = remove_outer_quotesX(key);
-
-        if (key == "cmd") {
-            comando = remove_outer_quotesX(val);
-        }
-        else if (key == "arg") {
-            arg_raw = trimX(val);
-        }
-    }
-
-    if (comando.empty()) return out;
-
-    if (!arg_raw.empty() && arg_raw.front() != '[' && arg_raw.front() != '{') {
-        std::string val = remove_outer_quotesX(arg_raw);
-        out.push_back({comando, val});
+    cJSON* cmd = cJSON_GetObjectItem(root, "cmd");
+    if (!cmd || !cJSON_IsString(cmd)) {
+        cJSON_Delete(root);
         return out;
     }
 
-    if (!arg_raw.empty() && arg_raw.front() == '[') {
-        std::string inner = trimX(arg_raw.substr(1, arg_raw.size() - 2));
+    std::string comando = cmd->valuestring;
 
-        std::vector<std::string> kvs;
-        std::string cur2;
-        in_single = in_double = esc = false;
+    // Caso arg simple
+    cJSON* arg = cJSON_GetObjectItem(root, "arg");
+    if (arg && cJSON_IsString(arg)) {
+        out.push_back({comando, arg->valuestring});
+        cJSON_Delete(root);
+        return out;
+    }
 
-        for (char c : inner) {
-            if (esc) { cur2.push_back(c); esc = false; continue; }
-            if (c == '\\') { esc = true; cur2.push_back(c); continue; }
-            if (c == '"' && !in_single) in_double = !in_double;
-            if (c == '\'' && !in_double) in_single = !in_single;
-
-            if (c == ',' && !in_single && !in_double) {
-                kvs.push_back(trimX(cur2));
-                cur2.clear();
-            } else {
-                cur2.push_back(c);
-            }
-        }
-        if (!cur2.empty()) kvs.push_back(trimX(cur2));
-
+    // Caso arg diccionario
+    if (arg && cJSON_IsObject(arg)) {
         out.push_back({comando, ""});
 
-        for (auto &kv : kvs) {
-            size_t pos = kv.find(':');
-            if (pos == std::string::npos) continue;
-
-            std::string k = trimX(kv.substr(0, pos));
-            std::string v = trimX(kv.substr(pos + 1));
-
-            k = remove_outer_quotesX(k);
-            v = remove_outer_quotesX(v);
-
-            out.push_back({k, v});
+        cJSON* child = arg->child;
+        while (child) {
+            if (cJSON_IsString(child))
+                out.push_back({child->string, child->valuestring});
+            else if (cJSON_IsNumber(child))
+                out.push_back({child->string, std::to_string(child->valuedouble)});
+            child = child->next;
         }
 
+        cJSON_Delete(root);
         return out;
     }
 
-    if (!arg_raw.empty() && arg_raw.front() == '{') {
-        std::string inner = trimX(arg_raw.substr(1, arg_raw.size() - 2));
-
-        std::vector<std::string> kvs;
-        std::string cur2;
-        in_single = in_double = esc = false;
-
-        for (char c : inner) {
-            if (esc) { cur2.push_back(c); esc = false; continue; }
-            if (c == '\\') { esc = true; cur2.push_back(c); continue; }
-            if (c == '"' && !in_single) in_double = !in_double;
-            if (c == '\'' && !in_double) in_single = !in_single;
-
-            if (c == ',' && !in_single && !in_double) {
-                kvs.push_back(trimX(cur2));
-                cur2.clear();
-            } else {
-                cur2.push_back(c);
-            }
-        }
-        if (!cur2.empty()) kvs.push_back(trimX(cur2));
-
+    // Caso args array
+    cJSON* args = cJSON_GetObjectItem(root, "args");
+    if (args && cJSON_IsArray(args)) {
         out.push_back({comando, ""});
 
-        for (auto &kv : kvs) {
-            size_t pos = kv.find(':');
-            if (pos == std::string::npos) continue;
-
-            std::string k = trimX(kv.substr(0, pos));
-            std::string v = trimX(kv.substr(pos + 1));
-
-            k = remove_outer_quotesX(k);
-            v = remove_outer_quotesX(v);
-
-            out.push_back({k, v});
+        int n = cJSON_GetArraySize(args);
+        for (int i = 0; i < n; i++) {
+            cJSON* item = cJSON_GetArrayItem(args, i);
+            if (cJSON_IsString(item))
+                out.push_back({comando, item->valuestring});
         }
 
+        cJSON_Delete(root);
         return out;
     }
 
+    cJSON_Delete(root);
     return out;
 }
 
 // ============================================================
-// Autodetección robusta
+// 2. TOKENIZADOR DE COMILLAS (NO JSON)
 // ============================================================
 
-static void detect_separatorsX(const std::string &line, char &sep1, char &sep2) {
-    std::string t = trimX(line);
-
-    if (t.find(',') != std::string::npos) {
-        sep1 = ',';
-        sep2 = '=';
-        return;
-    }
-
-    if (t.find('=') != std::string::npos) {
-        sep1 = ' ';
-        sep2 = '=';
-        return;
-    }
-
-    if (t.find(':') != std::string::npos) {
-        sep1 = ' ';
-        sep2 = ':';
-        return;
-    }
-
-    sep1 = ' ';
-    sep2 = '=';
-}
-
-// ============================================================
-// Split tokens
-// ============================================================
-
-static std::vector<std::string> split_tokensX(const std::string &line, char sep1) {
+static std::vector<std::string> tokenize_quoted(const std::string& line) {
     std::vector<std::string> out;
     std::string cur;
-    bool in_single = false, in_double = false, esc = false;
+    bool in_quotes = false;
 
-    for (char c : line) {
-        if (esc) { cur.push_back(c); esc = false; continue; }
-        if (c == '\\') { esc = true; cur.push_back(c); continue; }
-        if (c == '"' && !in_single) in_double = !in_double;
-        if (c == '\'' && !in_double) in_single = !in_single;
+    for (size_t i = 0; i < line.size(); i++) {
+        char c = line[i];
 
-        if (c == sep1 && !in_single && !in_double) {
-            out.push_back(trimX(cur));
-            cur.clear();
-        } else {
-            cur.push_back(c);
-        }
-    }
-    if (!cur.empty()) out.push_back(trimX(cur));
-
-    return out;
-}
-
-// ============================================================
-// PARSER PRINCIPAL
-// ============================================================
-
-std::vector<ParsedToken> parse_lineX(const std::string &line) {
-    std::vector<ParsedToken> result;
-    std::string clean = trimX(line);
-
-    if (clean.empty() || clean[0] == '#')
-        return result;
-
-    if (is_json_likeX(clean))
-        return parse_json_likeX(clean);
-
-    char sep1, sep2;
-    detect_separatorsX(clean, sep1, sep2);
-
-    auto tokens = split_tokensX(clean, sep1);
-
-    for (auto &t : tokens) {
-        size_t pos = t.find(sep2);
-        if (pos == std::string::npos) {
-            result.push_back({t, ""});
+        if (c == '"') {
+            in_quotes = !in_quotes;
             continue;
         }
 
-        std::string key = trimX(t.substr(0, pos));
-        std::string val = trimX(t.substr(pos + 1));
+        if (c == ' ' && !in_quotes) {
+            if (!cur.empty()) {
+                out.push_back(cur);
+                cur.clear();
+            }
+            continue;
+        }
 
-        val = remove_outer_quotesX(val);
-
-        result.push_back({key, val});
+        cur.push_back(c);
     }
 
-    return result;
+    if (!cur.empty()) out.push_back(cur);
+
+    return out;
+}
+
+// ============================================================
+// 3. PARSER PRINCIPAL
+// ============================================================
+
+#include <string>
+#include <vector>
+#include <cctype>
+
+struct Token {
+    std::string name;
+    std::string arg;
+};
+
+// Trim helper
+static std::string trim(const std::string& str) {
+    size_t start = 0;
+    size_t end = str.length();
+    
+    while (start < end && std::isspace(str[start])) start++;
+    while (end > start && std::isspace(str[end - 1])) end--;
+    
+    return str.substr(start, end - start);
+}
+
+// Parser principal
+std::vector<Token> parse_lineX(const std::string& line) {
+    std::vector<Token> tokens;
+    std::string trimmed = trim(line);
+    
+    if (trimmed.empty()) {
+        return tokens;
+    }
+    
+    size_t pos = 0;
+    size_t len = trimmed.length();
+    
+    while (pos < len) {
+        // Saltar espacios
+        while (pos < len && std::isspace(trimmed[pos])) pos++;
+        if (pos >= len) break;
+        
+        Token token;
+        
+        // Detectar si es key=value
+        size_t key_start = pos;
+        size_t eq_pos = std::string::npos;
+        size_t space_pos = std::string::npos;
+        
+        // Buscar '=' y espacio en este token
+        while (pos < len && !std::isspace(trimmed[pos])) {
+            if (trimmed[pos] == '=' && eq_pos == std::string::npos) {
+                eq_pos = pos;
+            }
+            pos++;
+        }
+        space_pos = pos;
+        
+        if (eq_pos != std::string::npos && eq_pos > key_start) {
+            // Formato key=value
+            token.name = trimmed.substr(key_start, eq_pos - key_start);
+            
+            // Saltar el '='
+            pos = eq_pos + 1;
+            
+            // Leer el valor
+            if (pos < len && trimmed[pos] == '"') {
+                // Valor entre comillas
+                pos++; // Saltar comilla inicial
+                size_t value_start = pos;
+                while (pos < len && trimmed[pos] != '"') {
+                    if (trimmed[pos] == '\\' && pos + 1 < len) {
+                        pos++; // Saltar escape
+                    }
+                    pos++;
+                }
+                token.arg = trimmed.substr(value_start, pos - value_start);
+                if (pos < len) pos++; // Saltar comilla final
+            } else {
+                // Valor sin comillas
+                size_t value_start = pos;
+                while (pos < len && !std::isspace(trimmed[pos])) {
+                    pos++;
+                }
+                token.arg = trimmed.substr(value_start, pos - value_start);
+            }
+        } else {
+            // Formato posicional (sin '=')
+            pos = key_start; // Resetear posición
+            
+            if (trimmed[pos] == '"') {
+                // Argumento entre comillas
+                pos++; // Saltar comilla inicial
+                size_t value_start = pos;
+                while (pos < len && trimmed[pos] != '"') {
+                    if (trimmed[pos] == '\\' && pos + 1 < len) {
+                        pos++; // Saltar escape
+                    }
+                    pos++;
+                }
+                token.name = trimmed.substr(value_start, pos - value_start);
+                if (pos < len) pos++; // Saltar comilla final
+            } else {
+                // Argumento sin comillas
+                size_t value_start = pos;
+                while (pos < len && !std::isspace(trimmed[pos])) {
+                    pos++;
+                }
+                token.name = trimmed.substr(value_start, pos - value_start);
+            }
+            token.arg = ""; // Sin argumento
+        }
+        
+        tokens.push_back(token);
+    }
+    
+    return tokens;
 }

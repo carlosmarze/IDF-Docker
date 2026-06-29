@@ -100,6 +100,7 @@ public:
     const char* name() const override { return "setwifi"; }
     const char* usage() const override { return "setwifi [ssid] [password] - Configura SSID y clave del WiFi"; }
     int minArgs() const override { return 2; }
+    bool positionalArgs() const override { return true; }
 
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
         ESP_LOGI(TAG,"Comando setwifi args0=%s, args1=%s", args[0].c_str(), args[1].c_str());

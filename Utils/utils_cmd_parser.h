@@ -1,29 +1,31 @@
-#pragma once
+#ifndef UTILS_CMD_PARSER_H
+#define UTILS_CMD_PARSER_H
+
 #include <string>
 #include <vector>
 
-//
-// ParsedToken: resultado de cada par key/val
-//
-/*struct ParsedToken {
-    std::string name;
-    std::string arg;
-};*/
+// ------------------------------------------------------------
+// Estructura base del parser
+// ------------------------------------------------------------
+struct ParsedToken {
+    std::string name;   // nombre del comando o clave
+    std::string arg;    // argumento asociado
+};
 
+// ------------------------------------------------------------
+// Función principal del parser
+// ------------------------------------------------------------
+// Soporta:
+//   {"cmd":"setssid","arg":"DepartamentoJ"}
+//   {"cmd":"ota","arg":{"server":"x","chunksize":1024}}
+//   {"cmd":"setwifi","args":["Departamento J","el departamento"]}
+//   setwifi "Departamento J" "el departamento"
+//   ota server=http://x chunksize=2048 reboot=no
 //
-// parse_line()
-//  - Autodetecta formato:
-//      1) key=val,key2=val2        → sep1=',', sep2='='
-//      2) key=val key2=val2        → sep1=' ', sep2='='
-//      3) key:val key2:val2        → sep1=' ', sep2=':'
-//      4) {"key":"val", ...}       → JSON-like, ignora sep1/sep2
-//
-//  - Soporta comillas simples y dobles
-//  - Soporta escapes: \"  \'  
-//  - Soporta comillas dobles internas estilo CSV: "" → "
-//  - Ignora líneas vacías o que comienzan con '#'
-//
-//  Retorna vector<ParsedToken> con todos los pares parseados.
-//
-std::vector<ParsedToken> parse_lineX(const std::string &line);
+// Devuelve un vector de ParsedToken:
+//   - tokens[0].name = comando
+//   - tokens[i].arg  = argumentos posicionales o pares key/value
+// ------------------------------------------------------------
+std::vector<ParsedToken> parse_lineX(const std::string& line);
 
+#endif // UTILS_CMD_PARSER_H

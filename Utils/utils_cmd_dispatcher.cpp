@@ -114,7 +114,6 @@ void CommandDispatcher::dispatcherTask() {
 
         auto it = commands.find(cmname);
         if (it == commands.end()) {
-            // Asignar a la variable static, no crear una nueva
             respuesta = "Error: Comando desconocido '" + cmname + "'";
             ESP_LOGW(TAG, "%s", respuesta.c_str());
             continue;
@@ -123,21 +122,39 @@ void CommandDispatcher::dispatcherTask() {
         Command *cmd = it->second.get();
 
         // ============================================================
-        // 🔥 LÓGICA UNIVERSAL DE ARGUMENTOS
+        // 🔥 LÓGICA UNIVERSAL DE ARGUMENTOS (NUEVA)
         // ============================================================
 
         if (!buf.empty()) {
+            auto ptokens = parse_lineX(cmname + " " + buf);
 
-            if (cmd->positionalArgs()) {
-                args = tokenize(buf);
-            }
-            else if (cmd->minArgs() <= 1) {
-                args.push_back(buf);
-            }
+            if (ptokens.size() <= 1) {
+                if (cmd->minArgs() <= 1) {
+                    args.push_back(buf);
+                }
+            } 
             else {
-                args = tokenize(buf);
+                if (cmd->positionalArgs()) {
+                    // POSICIONAL → usar name (no arg)
+                    for (size_t i = 1; i < ptokens.size(); i++) {
+                        if (!ptokens[i].name.empty()) {
+                            args.push_back(ptokens[i].name);  // ← CAMBIAR AQUÍ
+                        }
+                    }
+                } 
+                else {
+                    // NORMAL → usar key=value si existe
+                    for (size_t i = 1; i < ptokens.size(); i++) {
+                        if (ptokens[i].arg.empty()) {
+                            args.push_back(ptokens[i].name);
+                        } else {
+                            args.push_back(ptokens[i].name + "=" + ptokens[i].arg);
+                        }
+                    }
+                }
             }
-        }
+        }  
+
 
         LOGI(TAG, "SRC: %d - Comando: %s %s args#:%d", m.src, cmname.c_str(), m.arg, (int)args.size());
         //write_system_log(TAG, log_msg.c_str());

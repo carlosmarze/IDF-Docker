@@ -3,7 +3,7 @@
 
 #include <string>
 #include "utils_cmd_dispatcher.h"  // porque usa cmd_msg_t y CommandDispatcher
-
+#include "utils_cmd_parser.h"
 // Procesa una línea de texto crudo y envía los comandos al dispatcher
 void process_commands(cmd_source_t src,
                       const std::string &line,
@@ -11,10 +11,6 @@ void process_commands(cmd_source_t src,
                       char sep2 = '=',    // separador nombre/argumento
                       int client_fd = -1  // descriptor de cliente para respuestas asíncronas
 );
-struct ParsedToken {
-    std::string name;
-    std::string arg;
-};
 
 // Función auxiliar: recibe una línea y separadores
 static std::string remove_outer_quotes(const std::string &s);
