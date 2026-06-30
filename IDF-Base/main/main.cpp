@@ -99,7 +99,25 @@ void hwinfo(char *buffer, int buffersize)
     //esp_flash_get_size(esp_flash_default_chip, &flash_size);
    
     const esp_app_desc_t *app = esp_app_get_description();
+/*
+typedef struct {
+    uint32_t magic_word;        //!< Magic word ESP_APP_DESC_MAGIC_WORD  
+    uint32_t secure_version;    //!< Secure version  
+    uint32_t reserv1[2];        //!< reserv1  
+    char version[32];           //!< Application version  
+    char project_name[32];      //!< Project name  
+    char time[16];              //!< Compile time  
+    char date[16];              //!< Compile date 
+    char idf_ver[32];           //!< Version IDF  
+    uint8_t app_elf_sha256[32]; //!< sha256 of elf file  
+    uint16_t min_efuse_blk_rev_full; //!< Minimal eFuse block revision supported by image, in format: major * 100 + minor  
+    uint16_t max_efuse_blk_rev_full; //!< Maximal eFuse block revision supported by image, in format: major * 100 + minor  
+    uint8_t mmu_page_size;      //!< MMU page size in log base 2 format  
+    uint8_t reserv3[3];         //!< reserv3  
+    uint32_t reserv2[18];       //!< reserv2  
+} esp_app_desc_t;
 
+*/
     
     snprintf(buffer, buffersize,
         "HW Info:\n"
@@ -111,6 +129,8 @@ void hwinfo(char *buffer, int buffersize)
         " Free PSRAM: %u bytes\n"
         " Project: %s\n"
         " Version: %s\n"
+        " Date: %s\n"
+        " Time: %s\n"
         " IDF: %s\n",
         info.cores,
         info.features,
@@ -119,6 +139,8 @@ void hwinfo(char *buffer, int buffersize)
         heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
         app->project_name,
         app->version,
+        app->date,
+        app->time,
         app->idf_ver
     );
 
