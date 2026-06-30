@@ -72,6 +72,60 @@ public:
     }
 };
 
+//HW Info
+
+#include "esp_system.h"
+#include "esp_chip_info.h"
+//#include "esp_efuse.h"
+//#include "esp_flash.h"
+#include "esp_mac.h"
+#include "esp_app_desc.h"
+#include "esp_heap_caps.h"
+
+void hwinfo(char *buffer, int buffersize)
+{
+    char mac[18];
+    uint8_t mac_raw[6];
+    esp_read_mac(mac_raw, ESP_MAC_WIFI_STA);
+    snprintf(mac, sizeof(mac),
+             "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac_raw[0], mac_raw[1], mac_raw[2],
+             mac_raw[3], mac_raw[4], mac_raw[5]);
+
+    esp_chip_info_t info;
+    esp_chip_info(&info);
+
+    //uint32_t flash_size = 0;
+    //esp_flash_get_size(esp_flash_default_chip, &flash_size);
+   
+    const esp_app_desc_t *app = esp_app_get_description();
+
+    
+    snprintf(buffer, buffersize,
+        "HW Info:\n"
+        " Chip model: ESP32-S3\n"
+        " Cores: %d\n"
+        " Features: 0x%lx\n"
+        " MAC (STA): %s\n"
+        " Free internal RAM: %u bytes\n"
+        " Free PSRAM: %u bytes\n"
+        " Project: %s\n"
+        " Version: %s\n"
+        " IDF: %s\n",
+        info.cores,
+        info.features,
+        mac,
+        heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+        heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+        app->project_name,
+        app->version,
+        app->idf_ver
+    );
+
+
+}
+
+
 
 // ============================================================
 //  TAREAS FREERTOS (todas las que ya tenías)
@@ -218,9 +272,12 @@ void app_task(void *pv)
     
     //std::string log_msg = "\n\nINICIANDO SISTEMA - VERSION: " + std::string(version_info) + ", SensorID: " + std::to_string(SensorID) + ", Heap Libre: " + std::to_string(esp_get_free_heap_size()) + " bytes";
     LOGI(TAG, "\n\nINICIANDO SISTEMA - VERSION: %s, SensorID: %d, Heap Libre: %u bytes", version_info, SensorID, esp_get_free_heap_size());  
+    char hwdetails[1024];
+    hwinfo(hwdetails, sizeof(hwdetails));
+    LOGI(TAG,"HW INFO \n\n%s\n\n", hwdetails);
     //write_system_log("APP_MAIN", log_msg.c_str());
     //ESP_LOGI("APP_MAIN", "%s", log_msg.c_str());
-
+    //LOGI(TAG, "PSRAM Size: %d bytes", esp_psram_get_size());
     setenv("TZ", "ART3", 1);
     tzset();
 
