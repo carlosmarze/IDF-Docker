@@ -47,7 +47,7 @@ void task_60()
         "/field/field8?api_key=" + mensajeRead.read_api_key +
         "&SensorID=" + std::to_string(mensajeRead.sensor_id);
     if(!wifi_ready) {
-        ESP_LOGW(TAG, "WiFi no listo. Saltando GET keepalive.");
+        LOGW(TAG, "WiFi no listo. Saltando GET keepalive.");
         return;
     }
     ESP_LOGI(TAG, "GET keepalive: %s", get_url3.c_str());
@@ -78,7 +78,7 @@ void task_60()
     } else {
         LOGE(TAG, "Fallo GET keepalive: %s Error: %s", get_url3.c_str(), g_response_web);
        
-        ESP_LOGW(TAG, "Error: %s", g_response_web);
+        //ESP_LOGW(TAG, "Error: %s", g_response_web);
     }
 
     // g_first_run = false;
@@ -92,7 +92,7 @@ void task_3600_post()
     //Post una vez por hora el estado del dispositivo (incluso en la primera ejecución al inicio, para que quede un registro en Mits desde el arranque)
     // Generar el mensaje de estado (field8)
     if(!wifi_ready) {
-        ESP_LOGW(TAG, "WiFi no listo. Saltando POST estado.");
+        LOGW(TAG, "WiFi no listo. Saltando POST estado.");
         return;
     }
     //std::string log_msg;
@@ -111,7 +111,7 @@ void task_3600_post()
     temp += " Wind=0";
 
     ESP_LOGI(TAG, "POST estado (cada 60 min)");
-    LOGI(TAG, "Mensaje8=%s", temp.c_str());
+    ESP_LOGI(TAG, "Mensaje8:%s", temp.c_str());
     //WriteTSBulk(&mensajeWrite, (char*)g_tsurl, g_response_web, sizeof(g_response_web));
     // Llamada limpia usando writePost()
     bool ok = writePost(
@@ -129,7 +129,7 @@ void task_3600_post()
         return;
     }
 
-    LOGI(TAG, "POST enviado. Respuesta: %s", g_response_web);
+    ESP_LOGI(TAG, "POST enviado. Respuesta: %s", g_response_web);
    
 }
 
@@ -141,7 +141,7 @@ void task_3600_updt()
 {
     //Update OTA cada 60min (no lo hace en la primera ejecución, porque se hizo antesde arrancar el scheduler)
     if(!wifi_ready) {
-        ESP_LOGW(TAG, "WiFi no listo. Saltando update OTA.");
+        LOGW(TAG, "WiFi no listo. Saltando update OTA.");
         return;
     }
     if(g_first_run){
@@ -172,7 +172,7 @@ void task_3600_updt()
         }
     })";
 
-     LOGI(TAG, "comando OTA generado: %s", cmd_ota_str.c_str());
+     ESP_LOGI(TAG, "comando OTA generado: %s", cmd_ota_str.c_str());
     //ESP_LOGI(TAG, "%s", log_msg.c_str());
 
     process_commands(CMD_SRC_UART, cmd_ota_str.c_str(), ' ', ',');
