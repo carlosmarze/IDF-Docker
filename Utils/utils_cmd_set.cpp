@@ -275,6 +275,7 @@ public:
     std::string execute(cmd_source_t, const std::vector<std::string>&) {
         xTaskNotifyGive(wifi_connect_task_handle);
         g_manual_wifi_connect = true; // Indicamos que se solicitó una conexión manual para que el sistema no intente reconectar automáticamente
+        esp_wifi_set_mode(WIFI_MODE_STA);
         return "Solicitando conexión WiFi async.";
     }
 };
