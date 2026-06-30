@@ -518,17 +518,31 @@ public:
             return "{\"error\":\"WiFi no inicializado\"}";
         }
 
+        
+        wifi_mode_t  prevmodeAP;
+        esp_wifi_get_mode(&prevmodeAP);
+        if(prevmodeAP == WIFI_MODE_AP || prevmodeAP == WIFI_MODE_APSTA) { //porque en modo AP el scan no anda
+            esp_wifi_set_mode(WIFI_MODE_STA);
+            
+        }
+
         wifi_scan_config_t scan_config = {};
         scan_config.show_hidden = false;
         scan_config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
-
-        if (esp_wifi_scan_start(&scan_config, true) != ESP_OK) {
+        esp_err_t err = esp_wifi_scan_start(&scan_config, true);
+        
+        if (err != ESP_OK) {
+            LOGE(TAG, "Error: %s", esp_err_to_name(err));
             return "{\"error\":\"Fallo al iniciar escaneo\"}";
         }
-
+        
         uint16_t number = 15;
         wifi_ap_record_t ap_info[15];
         esp_wifi_scan_get_ap_records(&number, ap_info);
+
+        if(prevmodeAP == WIFI_MODE_AP || prevmodeAP == WIFI_MODE_APSTA) { //porque en modo AP el scan no anda
+            esp_wifi_set_mode(prevmodeAP);
+        }
 
         cJSON *root = cJSON_CreateArray();
         for (int i = 0; i < number; i++) {
