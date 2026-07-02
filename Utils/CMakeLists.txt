@@ -42,4 +42,5 @@ idf_component_register(
         esp_driver_gpio  # AGREGA ESTA LÍNEA ESPECÍFICA
         esp_driver_gptimer # Si usas timers
         lwip
+
 )

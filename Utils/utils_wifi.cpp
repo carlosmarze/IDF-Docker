@@ -322,6 +322,11 @@ extern "C" void wifi_hardware_init(void) {
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
+    // Desactivar power save para evitar beacon timeouts
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+     // 2) Aumentar timeout de beacon
+    ESP_ERROR_CHECK(esp_wifi_set_inactive_time(WIFI_IF_STA, 10)); // 10 segundos
+ 
     LOGI(TAG, "fin wifi HW.");
     // Tarea quitada de aquí para lanzarla en el momento justo
 }
