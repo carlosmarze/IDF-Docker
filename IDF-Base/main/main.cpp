@@ -18,7 +18,6 @@
 #include "esp_crt_bundle.h"
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
-#include "esp_heap_caps.h"
 
 // Utils y módulos del proyecto
 #include "utils_wifi.h"
