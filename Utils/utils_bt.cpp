@@ -17,8 +17,6 @@ static const char* TAG = "BLE_UART";
 //  VARIABLES DE ESTADO
 // ---------------------------------------------------------------------------
 static bool ble_is_running = false;
-static TaskHandle_t ble_host_task_handle = NULL;
-
 static uint16_t nus_rx_handle = 0;
 static uint16_t nus_tx_handle = 0;
 static uint16_t conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
@@ -198,17 +196,11 @@ static void ble_app_on_reset(int reason)
     ESP_LOGE(TAG, "BLE reset: reason=%d", reason);
 }
 
-
-
-
 static void ble_host_task(void *param)
 {
     ESP_LOGI(TAG, "BLE Host Task iniciado");
-    ble_host_task_handle = xTaskGetCurrentTaskHandle();
     nimble_port_run();
-    ESP_LOGI(TAG, "BLE Host Task terminando");
     nimble_port_freertos_deinit();
-    ble_host_task_handle = NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -358,43 +350,23 @@ void ble_stop_for_ota()
     ESP_LOGI(TAG, "Deteniendo NimBLE para OTA...");
     
     // 1) Detener advertising
-    int rc = ble_gap_adv_stop();
-    ESP_LOGI(TAG, "ble_gap_adv_stop rc=%d", rc);
+    ble_gap_adv_stop();
     
     // 2) Desconectar cliente si está conectado
     if (conn_handle_global != BLE_HS_CONN_HANDLE_NONE) {
-        rc = ble_gap_terminate(conn_handle_global, BLE_ERR_REM_USER_CONN_TERM);
-        ESP_LOGI(TAG, "ble_gap_terminate rc=%d", rc);
+        ble_gap_terminate(conn_handle_global, BLE_ERR_REM_USER_CONN_TERM);
         conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
+        vTaskDelay(pdMS_TO_TICKS(100)); // Esperar desconexión
     }
     
-    // 3) Esperar a que se procesen los eventos de desconexión
+    // 3) Detener el host (la tarea termina)
+    nimble_port_stop();
+    
+    // 4) Esperar a que la tarea del host termine realmente
     vTaskDelay(pdMS_TO_TICKS(200));
     
-    // 4) Detener el host (hace que nimble_port_run() retorne)
-    rc = nimble_port_stop();
-    ESP_LOGI(TAG, "nimble_port_stop rc=%d", rc);
-    
-    // 5) Esperar a que la tarea del host termine completamente
-    if (ble_host_task_handle != NULL) {
-        ESP_LOGI(TAG, "Esperando a que termine la tarea del host...");
-        
-        // Esperar hasta 2 segundos
-        for (int i = 0; i < 20 && ble_host_task_handle != NULL; i++) {
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-        
-        if (ble_host_task_handle != NULL) {
-            ESP_LOGE(TAG, "La tarea del host no terminó en 2 segundos");
-            // Forzar eliminación (no recomendado, pero evita crash)
-            vTaskDelete(ble_host_task_handle);
-            ble_host_task_handle = NULL;
-        }
-    }
-    
-    // 6) Ahora sí, liberar recursos
-    rc = nimble_port_deinit();
-    ESP_LOGI(TAG, "nimble_port_deinit rc=%d", rc);
+    // 5) Liberar recursos
+    nimble_port_deinit();
     
     ble_is_running = false;
     
@@ -410,12 +382,11 @@ void ble_restart_after_ota()
     
     ESP_LOGI(TAG, "Reiniciando NimBLE después de OTA...");
     
-    // Resetear handles
+    // Resetear handles (se regenerarán al registrar servicios)
     nus_rx_handle = 0;
     nus_tx_handle = 0;
-    conn_handle_global = BLE_HS_CONN_HANDLE_NONE;
     
-    // Reinicializar
+    // Llamar a la misma función de inicialización
     ble_uart_init();
     
     ble_is_running = true;
