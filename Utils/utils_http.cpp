@@ -52,28 +52,28 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 
     case HTTP_EVENT_ON_CONNECTED:
         // 🔥 CORREGIDO: No hay cabeceras todavía, solo avisar que conectó.
-        ESP_LOGI("HTTP", "CONNECTED"); 
+         ESP_LOGI(TAG, "CONNECTED"); 
         break;
 
     case HTTP_EVENT_HEADERS_SENT:
-        ESP_LOGI("HTTP", "HTTP_EVENT_HEADERS_SENT");
+         ESP_LOGI(TAG, "HTTP_EVENT_HEADERS_SENT");
         break;
 
     case HTTP_EVENT_ON_HEADER:
-        ESP_LOGI("HTTP", "HEADER: %s = %s",
+         ESP_LOGI(TAG, "HEADER: %s = %s",
                  evt->header_key ? evt->header_key : "",
                  evt->header_value ? evt->header_value : "");
         break;
 
     case HTTP_EVENT_ON_HEADERS_COMPLETE:
         // 🔥 CORREGIDO: Los punteros ya son inválidos, no los imprimas.
-        ESP_LOGI("HTTP", "HEADER Complete (Todas las cabeceras recibidas)");
+         ESP_LOGI(TAG, "HEADER Complete (Todas las cabeceras recibidas)");
         break;
 
     case HTTP_EVENT_ON_STATUS_CODE:
         // 🔥 CORREGIDO: El código de estado se obtiene de otra forma, no de header_key.
         // Si quieres loguearlo, usa esp_http_client_get_status_code(evt->client)
-        ESP_LOGI("HTTP", "Status Code received: %d", esp_http_client_get_status_code(evt->client));
+         ESP_LOGI(TAG, "Status Code received: %d", esp_http_client_get_status_code(evt->client));
         break;
 
     case HTTP_EVENT_ON_DATA:
@@ -101,15 +101,15 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
         break;
 
     case HTTP_EVENT_ON_FINISH:
-        ESP_LOGI("HTTP", "HTTP_EVENT_ON_FINISH");
+         ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
         break;
 
     case HTTP_EVENT_DISCONNECTED:
-        ESP_LOGW("HTTP", "HTTP_EVENT_DISCONNECTED");
+         ESP_LOGW(TAG, "HTTP_EVENT_DISCONNECTED");
         break;
 
     default:
-        ESP_LOGW("HTTP", "Evento HTTP desconocido id=%d", evt->event_id);
+         ESP_LOGW(TAG, "Evento HTTP desconocido id=%d", evt->event_id);
         break;
     }
 

@@ -20,9 +20,10 @@
 #include "utils_ota_worker.h"
 #include "utils_webs.h"
 #include "utils_logger.h"
-#include "utils_config.h" //para save_wifi_network
+#include "utils_config.h" 
 #include "utils_wifi.h" //para save_wifi_network
 #include "utils_mqtt.h"
+#include "utils_bt.h"
 
 #include "MisVariablesProyecto.h"
 
@@ -46,7 +47,7 @@ public:
 
         std::string respuesta = "SensorID seteado a " + std::to_string(SensorID);
         //write_system_log("CONFIG", respuesta.c_str());
-        ESP_LOGI("CONFIG", "%s",respuesta.c_str());
+        ESP_LOGI(TAG, "%s",respuesta.c_str());
         return "OK: Sensor ID seteado.";
     }
 };
@@ -55,7 +56,7 @@ public:
 class SetSSID : public Command {
 public:
     const char* name() const override { return "setssid"; }
-    const char* usage() const override { return "<ssid> - Configura el nombre de la red WiFi"; }
+    const char* usage() const override { return "[ssid] - Configura el nombre de la red WiFi"; }
     int minArgs() const override { return 1; }
 
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
@@ -66,7 +67,7 @@ public:
             save_wifi_network(g_pending_ssid.c_str(), g_pending_pass.c_str());
         }
 
-        ESP_LOGI("CONFIG", "SSID preparado: %s", g_pending_ssid.c_str());
+        ESP_LOGI(TAG, "SSID preparado: %s", g_pending_ssid.c_str());
         return "OK: SSID seteado. Use 'connect' para aplicar o 'setwifipass' si falta la clave.";
     }
 };
@@ -74,7 +75,7 @@ public:
 class SetWifiPass : public Command {
 public:
     const char* name() const override { return "setwifipass"; }
-    const char* usage() const override { return "<password> - Configura la clave del WiFi"; }
+    const char* usage() const override { return "[password] - Configura la clave del WiFi"; }
     int minArgs() const override { return 1; }
 
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
@@ -83,11 +84,29 @@ public:
         // Si ya tenemos el SSID, guardamos en el JSON para que sea persistente
         if (!g_pending_ssid.empty()) {
             save_wifi_network(g_pending_ssid.c_str(), g_pending_pass.c_str());
-            ESP_LOGI("CONFIG", "Red guardada en historial JSON.");
+            ESP_LOGI(TAG, "Red guardada en historial JSON.");
         }
 
-        ESP_LOGI("CONFIG", "Password preparada.");
+        ESP_LOGI(TAG, "Password preparada.");
         return "OK: Password seteada y guardada en historial.";
+    }
+};
+
+
+
+class SetWifi : public Command {
+
+public:
+    const char* name() const override { return "setwifi"; }
+    const char* usage() const override { return "setwifi [ssid] [password] - Configura SSID y clave del WiFi"; }
+    int minArgs() const override { return 2; }
+    bool positionalArgs() const override { return true; }
+
+    std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
+        ESP_LOGI(TAG,"Comando setwifi args0=%s, args1=%s", args[0].c_str(), args[1].c_str());
+        save_wifi_network(args[0].c_str(), args[1].c_str());
+
+        return "WiFi guardado correctamente. Reboot para conectar";
     }
 };
 
@@ -95,12 +114,12 @@ public:
 class SetMiTSServer : public Command {
 public: 
     const char* name() const override { return "setmitsserver"; }
-    const char* usage() const override { return "[server] - TBI Setea la variable mitsServer"; } // <-- Añadir
+    const char* usage() const override { return "[server] - Setea la variable mitsServer"; } // <-- Añadir
     int minArgs() const override { return 1; }
 
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
         std::string tsServer = args[0];
-        ESP_LOGI("CONFIG", "Configurando MiTSServer: %s", tsServer.c_str());
+        ESP_LOGI(TAG, "Configurando MiTSServer: %s", tsServer.c_str());
         // Aquí llamas a tu lógica de NVS o WiFi
         return "OK: MiTSServer cambiado";
     }
@@ -149,6 +168,52 @@ public:
     }
 };
 
+class StartBLE : public Command {
+public:
+    const char* name() const override { return "ble"; }
+    const char* usage() const override { return "<on/off> - Arranca BT. off=hace reboot"; }
+    int minArgs() const override { return 1; }
+
+    std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
+        const std::string &mode = args[0];
+        bool on = (strcasecmp(mode.c_str(), "on") == 0);
+        if(on){
+            if(ble_status()) {
+                return "BLE ya está activo";
+            }
+            else {
+                std::string msg = "arrancando BLE";
+                LOGI(TAG, msg.c_str());
+                ble_uart_init();
+                return msg;
+            }
+        }
+        else {
+            LOGI(TAG, "\nReboot para apagar BLE\n");
+            esp_restart();
+        }
+    }
+    
+   
+};
+
+class LedCommandB : public Command {
+public:
+    const char* name() const override { return "set_led"; }
+    const char* usage() const override { return "[nroLed=On/Off] - TBI Setea el estado del LED nroLed"; } // <-- Añadir
+    int minArgs() const override { return 2; }
+    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
+        const std::string &mode = args[0];
+        int gpio = std::stoi(args[1]);
+        bool on = (strcasecmp(mode.c_str(), "on") == 0);
+        ESP_LOGI(TAG, "LED gpio=%d -> %s", gpio, on ? "ON" : "OFF");
+        return "LED set";
+    }
+};
+
+
+
+
 // -----------------------------------------------------------------------------
 // Implementaciones de comandos
 // -----------------------------------------------------------------------------
@@ -169,7 +234,7 @@ public:
         std::string output = "" ;
         output += "========================================";
         output += "   LISTA DE COMANDOS DISPONIBLES";
-        output += "========================================";
+        output += "========================================\n";
         
         // Recorremos el mapa del dispatcher
         const auto& cmdMap = _dispatcher.getCommands();
@@ -187,50 +252,6 @@ public:
 };
 
 
-
-/*class LedCommand : public Command {
-public:
-    const char* name() const override { return "set_led"; }
-    const char* usage() const override { return "[nroLed=On/Off] - TBI Setea el estado del LED nroLed"; } // <-- Añadir
-    int minArgs() const override { return 2; }
-    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
-        const std::string &mode = args[0];
-        int gpio = std::stoi(args[1]);
-        bool on = (strcasecmp(mode.c_str(), "on") == 0);
-        ESP_LOGI(TAG, "LED gpio=%d -> %s", gpio, on ? "ON" : "OFF");
-        return "LED set";
-    }
-};
-*/
-class WifiCommand : public Command {
-private:
-    CommandDispatcher& _dispatcher;
-
-public:
-    WifiCommand(CommandDispatcher& disp) : _dispatcher(disp) {}
-    const char* name() const override { return "set_wifi"; }
-    int minArgs() const override { return 2; }
-    const char* usage() const override { return "set_wifi <ssid> <password>"; }
-
-    std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
-
-        // Llamar a setssid
-        if (auto* cmd1 = _dispatcher.getCommand("setssid")) {
-            cmd1->execute(src, { args[0] });
-        } else {
-            return "Error interno: comando setssid no encontrado";
-        }
-
-        // Llamar a setwifipass
-        if (auto* cmd2 = _dispatcher.getCommand("setwifipass")) {
-            cmd2->execute(src, { args[1] });
-        } else {
-            return "Error interno: comando setwifipass no encontrado";
-        }
-
-        return "WiFi configurado correctamente";
-    }
-};
 
 
 class connectWifi : public Command {
@@ -254,6 +275,7 @@ public:
     std::string execute(cmd_source_t, const std::vector<std::string>&) {
         xTaskNotifyGive(wifi_connect_task_handle);
         g_manual_wifi_connect = true; // Indicamos que se solicitó una conexión manual para que el sistema no intente reconectar automáticamente
+        esp_wifi_set_mode(WIFI_MODE_STA);
         return "Solicitando conexión WiFi async.";
     }
 };
@@ -321,8 +343,20 @@ public:
             }
         }
 
-        //ESP_LOGI(TAG, "OTA job recibido: URL='%s' chunksize=%d reboot=%d",
-          //       url.c_str(), chunk, reboot);
+        // VALIDACIÓN CRÍTICA: Evitar crash si URL está vacía
+        if (url.empty()) {
+            ESP_LOGE(TAG, "OTA: URL vacía. Args recibidos: %s", args[0].c_str());
+            return "Error OTA: URL del servidor no especificada";
+        }
+
+        // Validar que la URL empiece con http:// o https://
+        if (url.find("http://") != 0 && url.find("https://") != 0) {
+            ESP_LOGE(TAG, "OTA: URL inválida: %s", url.c_str());
+            return "Error OTA: URL debe empezar con http:// o https://";
+        }
+
+        ESP_LOGI(TAG, "OTA job: URL='%s' chunk=%d reboot=%d https=%d", url.c_str(), chunk, reboot, httpspar);
+        
         ota_job_t job = {};
         snprintf(job.url, sizeof(job.url), "%s", url.c_str());
         job.reboot_after = reboot;
@@ -485,17 +519,31 @@ public:
             return "{\"error\":\"WiFi no inicializado\"}";
         }
 
+        
+        wifi_mode_t  prevmodeAP;
+        esp_wifi_get_mode(&prevmodeAP);
+        if(prevmodeAP == WIFI_MODE_AP || prevmodeAP == WIFI_MODE_APSTA) { //porque en modo AP el scan no anda
+            esp_wifi_set_mode(WIFI_MODE_STA);
+            
+        }
+
         wifi_scan_config_t scan_config = {};
         scan_config.show_hidden = false;
         scan_config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
-
-        if (esp_wifi_scan_start(&scan_config, true) != ESP_OK) {
+        esp_err_t err = esp_wifi_scan_start(&scan_config, true);
+        
+        if (err != ESP_OK) {
+            LOGE(TAG, "Error: %s", esp_err_to_name(err));
             return "{\"error\":\"Fallo al iniciar escaneo\"}";
         }
-
+        
         uint16_t number = 15;
         wifi_ap_record_t ap_info[15];
         esp_wifi_scan_get_ap_records(&number, ap_info);
+
+        if(prevmodeAP == WIFI_MODE_AP || prevmodeAP == WIFI_MODE_APSTA) { //porque en modo AP el scan no anda
+            esp_wifi_set_mode(prevmodeAP);
+        }
 
         cJSON *root = cJSON_CreateArray();
         for (int i = 0; i < number; i++) {
@@ -677,6 +725,7 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
     dispatcher.registerCommand(std::make_unique<HelpCommand>(dispatcher)); //necesita dispatcher para listar los comandos disponibles
 
     dispatcher.registerCommand(std::make_unique<CmdReboot>());
+    dispatcher.registerCommand(std::make_unique<StartBLE>());
     dispatcher.registerCommand(std::make_unique<SetMiTSServer>());
     //dispatcher.registerCommand(std::make_unique<CmdFreeHeap>());
     //dispatcher.registerCommand(std::make_unique<HelpCommand>());
@@ -686,7 +735,7 @@ void register_utils_commands(CommandDispatcher& dispatcher) {
     dispatcher.registerCommand(std::make_unique<SetSensorID>());
     dispatcher.registerCommand(std::make_unique<SetSSID>());
     dispatcher.registerCommand(std::make_unique<SetWifiPass>());
-    dispatcher.registerCommand(std::make_unique<WifiCommand>(dispatcher)); //necesita dispatcher para llamar a los otros dos comandos
+    dispatcher.registerCommand(std::make_unique<SetWifi>()); 
     dispatcher.registerCommand(std::make_unique<WifiScanCommand>());
     dispatcher.registerCommand(std::make_unique<WifiConnectCommand>());
     dispatcher.registerCommand(std::make_unique<connectWifi>());

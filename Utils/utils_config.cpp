@@ -23,6 +23,7 @@ char mqttpass[24];
 char mqtttopicbase[16];
 char mqttcert[32];
 uint32_t mqttport;
+char blename[16] = "MiESP32-S3";
 
 std::string g_pending_ssid = "";
 std::string g_pending_pass = "";
@@ -120,6 +121,12 @@ static bool aplicar_config_linea_directo(const char* linea) {
     if (strncmp(linea, "setmqttport=", 12) == 0) {
         mqttport = (uint32_t) strtoul(linea + 12, NULL, 10);
         LOGI(TAG_CONFIG, "Mqtt port: %u", mqttport);
+        return true;
+    }
+    if (strncmp(linea, "setblename=", 11) == 0) {
+        strncpy(blename, linea + 11, sizeof(blename) - 1);
+        blename[sizeof(blename) - 1] = '\0';
+        LOGI(TAG_CONFIG, "BlueTooth name: %s", blename);
         return true;
     }
     // otros comandos de config que solo setean variables

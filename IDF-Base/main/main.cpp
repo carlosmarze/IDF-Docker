@@ -73,6 +73,82 @@ public:
     }
 };
 
+//HW Info
+
+#include "esp_system.h"
+#include "esp_chip_info.h"
+//#include "esp_efuse.h"
+//#include "esp_flash.h"
+#include "esp_mac.h"
+#include "esp_app_desc.h"
+#include "esp_heap_caps.h"
+
+void hwinfo(char *buffer, int buffersize)
+{
+    char mac[18];
+    uint8_t mac_raw[6];
+    esp_read_mac(mac_raw, ESP_MAC_WIFI_STA);
+    snprintf(mac, sizeof(mac),
+             "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac_raw[0], mac_raw[1], mac_raw[2],
+             mac_raw[3], mac_raw[4], mac_raw[5]);
+
+    esp_chip_info_t info;
+    esp_chip_info(&info);
+
+    //uint32_t flash_size = 0;
+    //esp_flash_get_size(esp_flash_default_chip, &flash_size);
+   
+    const esp_app_desc_t *app = esp_app_get_description();
+/*
+typedef struct {
+    uint32_t magic_word;        //!< Magic word ESP_APP_DESC_MAGIC_WORD  
+    uint32_t secure_version;    //!< Secure version  
+    uint32_t reserv1[2];        //!< reserv1  
+    char version[32];           //!< Application version  
+    char project_name[32];      //!< Project name  
+    char time[16];              //!< Compile time  
+    char date[16];              //!< Compile date 
+    char idf_ver[32];           //!< Version IDF  
+    uint8_t app_elf_sha256[32]; //!< sha256 of elf file  
+    uint16_t min_efuse_blk_rev_full; //!< Minimal eFuse block revision supported by image, in format: major * 100 + minor  
+    uint16_t max_efuse_blk_rev_full; //!< Maximal eFuse block revision supported by image, in format: major * 100 + minor  
+    uint8_t mmu_page_size;      //!< MMU page size in log base 2 format  
+    uint8_t reserv3[3];         //!< reserv3  
+    uint32_t reserv2[18];       //!< reserv2  
+} esp_app_desc_t;
+
+*/
+    
+    snprintf(buffer, buffersize,
+        "HW Info:\n"
+        " Chip model: ESP32-S3\n"
+        " Cores: %d\n"
+        " Features: 0x%lx\n"
+        " MAC (STA): %s\n"
+        " Free internal RAM: %u bytes\n"
+        " Free PSRAM: %u bytes\n"
+        " Project: %s\n"
+        " Version: %s\n"
+        " Date: %s\n"
+        " Time: %s\n"
+        " IDF: %s\n",
+        info.cores,
+        info.features,
+        mac,
+        heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+        heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+        app->project_name,
+        app->version,
+        app->date,
+        app->time,
+        app->idf_ver
+    );
+
+
+}
+
+
 
 // ============================================================
 //  TAREAS FREERTOS (todas las que ya tenías)
@@ -219,22 +295,12 @@ void app_task(void *pv)
     
     //std::string log_msg = "\n\nINICIANDO SISTEMA - VERSION: " + std::string(version_info) + ", SensorID: " + std::to_string(SensorID) + ", Heap Libre: " + std::to_string(esp_get_free_heap_size()) + " bytes";
     LOGI(TAG, "\n\nINICIANDO SISTEMA - VERSION: %s, SensorID: %d, Heap Libre: %u bytes", version_info, SensorID, esp_get_free_heap_size());  
-    
-    ESP_LOGI("HW", "=== Hardware Info ===");
-    
-    // Mostrar heap interno
-    size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-    size_t internal_total = heap_caps_get_total_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-    
-    ESP_LOGI("HW", "Heap interno total: %u KB", internal_total / 1024);
-    ESP_LOGI("HW", "Heap interno libre: %u KB", internal_free / 1024);
-    
-    ESP_LOGI("HW", "=====================");
-
-
+    char hwdetails[1024];
+    hwinfo(hwdetails, sizeof(hwdetails));
+    LOGI(TAG,"HW INFO \n\n%s\n\n", hwdetails);
     //write_system_log("APP_MAIN", log_msg.c_str());
     //ESP_LOGI("APP_MAIN", "%s", log_msg.c_str());
-
+    //LOGI(TAG, "PSRAM Size: %d bytes", esp_psram_get_size());
     setenv("TZ", "ART3", 1);
     tzset();
 
@@ -283,8 +349,11 @@ void app_task(void *pv)
     // ------------------------------------------------------------
     // FASE 4 — Conexión maestra
     // ------------------------------------------------------------
-    iniciar_proceso_conexion_maestra();
-
+    bool haywifi = iniciar_proceso_conexion_maestra(); //Si no se conecta a ninguna red, retorna false
+    if(!haywifi) {
+        LOGI(TAG, "Arrancando BlueTooth, no hay Wifi");
+        ble_uart_init(); //Arranca Blue tooth
+    }
     // ------------------------------------------------------------
     // FASE 5 — NTP si hay WiFi
     // ------------------------------------------------------------
@@ -367,13 +436,7 @@ void app_task(void *pv)
     // ------------------------------------------------------------
     // FASE 9 — Loop principal
     // ------------------------------------------------------------
-    if(!wifi_ready) {
-            LOGI(TAG, "No hay Wifi. Iniciando Bluetooth. Heap libre: %d", esp_get_free_heap_size());
-            ble_uart_init();
-           
-        }
-   
-
+    //bool btoothactivo = false;
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(60000));
         

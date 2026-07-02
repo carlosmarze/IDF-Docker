@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>ESP32 BLE Config</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #ffffff; /* fondo blanco */
+        color: #333333;
+        padding: 20px;
+    }
+    h2, h3 {
+        color: #0b3d0b; /* verde oscuro */
+    }
+    .card {
+        background: #f2f2f2;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        border: 1px solid #cccccc;
+    }
+    label {
+        display: block;
+        margin-top: 10px;
+        color: #0b3d0b;
+    }
+    input {
+        width: 90%;
+        padding: 8px;
+        margin-top: 5px;
+        border-radius: 5px;
+        border: 1px solid #999;
+        background: #ffffff;
+        color: #000;
+    }
+    button {
+        margin-top: 10px;
+        padding: 10px 20px;
+        background: #03a9f4; /* azul */
+        border: none;
+        border-radius: 5px;
+        color: #fff;
+        cursor: pointer;
+        font-size: 15px;
+    }
+    button:hover {
+        background: #0288d1; /* azul más oscuro */
+    }
+    textarea {
+        width: 100%;
+        height: 200px;
+        background: #000000;      /* fondo negro */
+        color: #00ff00;           /* texto verde */
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid #444;
+        margin-top: 10px;
+        font-family: Consolas, monospace;
+        font-size: 14px;
+    }
+</style>
+</head>
+
+<body>
+
+<h2>Terminal BLE para ESP32‑S3 (NUS)</h2>
+
+<div class="card">
+    <button id="connect">Conectar BLE</button>
+    <p id="status">Estado: desconectado</p>
+</div>
+
+<div class="card">
+    <h3>Configurar WiFi</h3>
+    <label>SSID:</label>
+    <input id="ssid" type="text">
+
+    <label>Password:</label>
+    <input id="pass" type="text">
+
+    <button id="sendWifi">Enviar SSID/PASS</button>
+    <button id="sendWifiJson">Enviar JSON</button>
+</div>
+
+<div class="card">
+    <h3>Comandos rápidos</h3>
+    <button id="scan">SCAN</button>
+    <button id="reset">RESET</button>
+</div>
+
+<div class="card">
+    <h3>Terminal</h3>
+    <textarea id="log" readonly></textarea>
+    <input id="cmd" type="text" placeholder="Escribir comando...">
+    <button id="sendCmd">Enviar comando</button>
+</div>
+
+<script>
+let rxChar, txChar;
+
+function log(msg) {
+    const logBox = document.getElementById("log");
+    logBox.value += msg + "\n";
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+document.getElementById("connect").onclick = async () => {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: ["6e400001-b5a3-f393-e0a9-e50e24dcca9e"]
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
+
+        rxChar = await service.getCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
+        txChar = await service.getCharacteristic("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
+
+        await txChar.startNotifications();
+        txChar.addEventListener("characteristicvaluechanged", event => {
+            const value = new TextDecoder().decode(event.target.value);
+            log("RX: " + value);
+        });
+
+        document.getElementById("status").innerText = "Estado: conectado";
+        log("Conectado al ESP32‑S3");
+    } catch (err) {
+        log("ERROR: " + err);
+    }
+};
+
+async function send(text) {
+    if (!rxChar) {
+        log("ERROR: No conectado");
+        return;
+    }
+    await rxChar.writeValue(new TextEncoder().encode(text));
+    log("TX: " + text);
+}
+
+document.getElementById("sendWifi").onclick = () => {
+    const ssid = document.getElementById("ssid").value;
+    const pass = document.getElementById("pass").value;
+
+    send(`setwifi ${ssid} ${pass}`);
+
+};
+function clean(x) {
+    return x.replace(/"/g, "").trim();
+}
+
+document.getElementById("sendWifiJson").onclick = () => {
+    const ssid = clean(document.getElementById("ssid").value);
+    const pass = clean(document.getElementById("pass").value);
+
+    const json = JSON.stringify({
+        cmd: "setwifi",
+        args: [ssid, pass]
+    });
+
+    send(json);
+};
+
+document.getElementById("scan").onclick = () => {
+    send("scan");
+};
+
+document.getElementById("reset").onclick = () => {
+    send("reboot");
+};
+
+document.getElementById("sendCmd").onclick = () => {
+    const cmd = document.getElementById("cmd").value;
+    send(cmd);
+};
+</script>
+
+</body>
+</html>

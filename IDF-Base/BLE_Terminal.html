@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h2>Terminal BLE ESP32-NUS</h2>
+
+<button id="connect">Conectar</button>
+<br><br>
+
+<textarea id="log" cols="80" rows="20"></textarea><br>
+<input id="input" type="text" size="60">
+<button id="send">Enviar</button>
+
+<script>
+let rxChar, txChar;
+
+document.getElementById("connect").onclick = async () => {
+    const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: ["6e400001-b5a3-f393-e0a9-e50e24dcca9e"]
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
+
+    rxChar = await service.getCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
+    txChar = await service.getCharacteristic("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
+
+    await txChar.startNotifications();
+    txChar.addEventListener("characteristicvaluechanged", event => {
+        const value = new TextDecoder().decode(event.target.value);
+        document.getElementById("log").value += "RX: " + value + "\n";
+    });
+
+    document.getElementById("log").value += "Conectado!\n";
+};
+
+document.getElementById("send").onclick = async () => {
+    const text = document.getElementById("input").value;
+    await rxChar.writeValue(new TextEncoder().encode(text));
+    document.getElementById("log").value += "TX: " + text + "\n";
+};
+</script>
+</body>
+</html>
