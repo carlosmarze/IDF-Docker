@@ -40,6 +40,7 @@
 #include "sched_tasks.h"
 #include "project_tasks.h"
 #include "MisVariablesProyecto.h"
+#include "config_proyecto.h"
 
 #define TAG "APP_MAIN"
 #define PAYLOAD_SIZE 128
@@ -55,6 +56,8 @@ extern CommandDispatcher* global_dispatcher_ptr;
 typedef struct {
     int valor;
 } DatosSensor_t;
+//Pin donde conectaré los sensores DS18B20, se puede cambiar con el comando "temp_scan pin=<gpio>"
+//int g_onewire_pin = -1;   // sin configurar
 
 
 // ============================================================
@@ -260,6 +263,7 @@ void service_starter_task(void *pvParameters)
 
             //set_sched_inicio(true); //lo movemos antes de arrancar scheduler en app_task
             task_60();
+            task_60_temp();
             task_3600_post();
             task_3600_updt();
             set_sched_inicio(false);
@@ -288,7 +292,13 @@ void app_task(void *pv)
         LOGW("SYS", "No se encontró %s. El sistema iniciará con valores default.", CONFIG_FILE_PATH);
         SensorID = SENSORID; //config.txt es un archivo con una lista de comandos, por ej setsensorid=7001
     } else {
-        LOGI("SYS", "Configuración cargada desde el archivo.");
+        LOGI("SYS", "Configuración sistema cargada desde el archivo.");
+    }
+    if(!cargar_config_proyecto_file_directo()) { //configuraciones particulares del proyecto
+        LOGW("SYS", "No se encontraron comandos proyecto %s. El sistema iniciará con valores default.", CONFIG_FILE_PATH);
+        //SensorID = SENSORID; //config.txt es un archivo con una lista de comandos, por ej setsensorid=7001
+    } else {
+        LOGI("SYS", "Configuración proyecto cargada desde el archivo.");
     }
 
     
@@ -403,6 +413,8 @@ void app_task(void *pv)
     miTS_init();
 
     sched_register_task_60(task_60);
+    sched_register_task_60_temp(task_60_temp);
+    
     sched_register_task_3600_post(task_3600_post);
     sched_register_task_3600_updt(task_3600_updt);
 

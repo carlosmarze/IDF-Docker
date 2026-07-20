@@ -8,11 +8,14 @@
 static const char* TAG = "SCHED";
 
 // Punteros a funciones definidas en main
+//capaz que este archivo no debería estar en utils, sino el proyecto
 static sched_cb_t cb_60 = nullptr;
+static sched_cb_t cb_60_temp = nullptr;
 static sched_cb_t cb_3600_post = nullptr;
 static sched_cb_t cb_3600_updt = nullptr;
 
 void sched_register_task_60(sched_cb_t cb)        { cb_60 = cb; }
+void sched_register_task_60_temp(sched_cb_t cb)   { cb_60_temp = cb; }
 void sched_register_task_3600_post(sched_cb_t cb) { cb_3600_post = cb; }
 void sched_register_task_3600_updt(sched_cb_t cb) { cb_3600_updt = cb; }
 
@@ -32,6 +35,7 @@ static void scheduler_task(void* arg)
 
         if (seconds % 60 == 0 && cb_60) {
             cb_60();
+            cb_60_temp();
         }
 
         if (seconds % 3600 == 0) {

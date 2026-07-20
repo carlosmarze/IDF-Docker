@@ -1,4 +1,4 @@
-# idf_component_register(SRCS "cmd_Led.cpp" "project_tasks.cpp" "sched_tasks.cpp" "main.cpp"
+# idf_component_register(SRCS "pr_ds18b20.cpp" "pr_onewiresearch.cpp" "pr_onewire.cpp" "config_proyecto.cpp" "cmd_Led_borrar.cpp" "project_tasks.cpp" "sched_tasks.cpp" "main.cpp"
 #                    INCLUDE_DIRS ".")
 #target_link_libraries(${COMPONENT_TARGET} PRIVATE esp_wifi esp_event nvs_flash lwip log mqtt)
 # target_link_libraries(${COMPONENT_TARGET} PRIVATE esp_wifi esp_event nvs_flash lwip log mqtt littlefs)
@@ -7,6 +7,10 @@ idf_component_register(
         "main.cpp"
         "sched_tasks.cpp"
         "project_tasks.cpp"
+        "pr_onewire.cpp"
+        "pr_onewiresearch.cpp"
+        "pr_ds18b20.cpp"
+        "config_proyecto.cpp"
         INCLUDE_DIRS "."
         #EMBED_TXTFILES "certs/hivemq_ca.pem" Lo leemos desde FS, no lo cargamos en el firmware
     

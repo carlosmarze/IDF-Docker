@@ -1,5 +1,11 @@
 #include "sched_tasks.h"
 #include "project_tasks.h"
+#include "project_tasks.h"     // tus comandos
+#include "pr_onewire.h"
+#include "pr_ds18b20.h"
+#include "pr_onewiresearch.h"
+#include "config_proyecto.h"
+
 #include "esp_log.h"
 #include "driver/gpio.h"
 #include <string>
@@ -34,7 +40,7 @@ public:
 class LedOnCommand : public Command {
 public:
     const char* name() const override { return "ledon"; }
-    const char* usage() const override { return "<pin>"; }
+    const char* usage() const override { return "[pin] - Enciende el LED en el pin especificado"; }
     int minArgs() const override { return 1; }
     bool positionalArgs() const override { return true; }   // si tu base lo requiere
     std::string execute(cmd_source_t src, const std::vector<std::string>& args) override {
@@ -47,7 +53,19 @@ public:
         return "LED encendido en pin " + std::to_string(pin);
     }
 };
-
+class LedSetCommand : public Command {
+public:
+    const char* name() const override { return "setled"; }
+    const char* usage() const override { return "[nroLed=On/Off] - TBI Setea el estado del LED nroLed"; } // <-- Añadir
+    int minArgs() const override { return 2; }
+    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
+        const std::string &mode = args[0];
+        int gpio = std::stoi(args[1]);
+        bool on = (strcasecmp(mode.c_str(), "on") == 0);
+        ESP_LOGI(TAG, "LED gpio=%d -> %s", gpio, on ? "ON" : "OFF");
+        return "LED set";
+    }
+};
 
 class PinCommand : public Command {
 public:
@@ -66,6 +84,105 @@ public:
         return msg;
     }
 };
+/***********************************************************************************
+ * Comando para leer la temperatura de sensores DS18B20 conectados a un pin específico
+ * Opciones:
+        //tempscan scan - busca todos los sensores DS18B20 en el pin por defecto (GPIO4). Se puede correr una sola vez al inicio o cuando se quiere re escanear los sensores
+        //tempscan - escanea todos los sensores DS18B20 en el pin por defecto (GPIO4)
+        //tempscan id=2801A3B91204007C
+        //tempscan fast
+        //tempscan fast sin 750ms de espera
+        //tempscan raw devuelve scratchpad en hex además de la temperatura
+        //tempscan pin=5 usa otro GPIO
+**********************************************************************************/        
+class TempScanCommand : public Command {
+public:
+    const char* name() const override { return "temp_scan"; }
+    const char* usage() const override {
+        return "Lee sensores DS18B20. Opciones: fast, raw, id=<rom>, pin=<gpio>, rescan";
+    }
+    int minArgs() const override { return 0; }
+
+    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
+
+        bool fast = false;
+        bool raw = false;
+        bool do_rescan = false;
+        std::string target_id;
+
+        // -----------------------------
+        // PARSE ARGUMENTOS
+        // -----------------------------
+        for (const auto &a : args) {
+            if (strcasecmp(a.c_str(), "fast") == 0) fast = true;
+            else if (strcasecmp(a.c_str(), "raw") == 0) raw = true;
+            else if (strcasecmp(a.c_str(), "rescan") == 0) do_rescan = true;
+            else if (a.rfind("pin=", 0) == 0) g_onewire_pin = std::stoi(a.substr(4));
+            else if (a.rfind("id=", 0) == 0) target_id = a.substr(3);
+        }
+
+        // -----------------------------
+        // RESCAN SI SE PIDIÓ
+        // -----------------------------
+        if (do_rescan) {
+            init_onewire_sensors();
+        }
+
+        OneWire ow((gpio_num_t)g_onewire_pin);
+
+        // -----------------------------
+        // LECTURA DE TEMPERATURAS
+        // -----------------------------
+        //std::string json = "{\"sensors\":[";
+        tempjson = "{\"sensors\":["; //variable definida en config_proyecto.h y usada en sched_tasks.cpp para enviar la lectura periódica de temperatura a TSComm
+
+        for (auto &rom : g_sensors) {
+
+            char rom_str[17];
+            snprintf(rom_str, sizeof(rom_str),
+                "%02X%02X%02X%02X%02X%02X%02X%02X",
+                rom[0], rom[1], rom[2], rom[3],
+                rom[4], rom[5], rom[6], rom[7]);
+
+            if (!target_id.empty() && target_id != rom_str)
+                continue;
+
+            DS18B20 sensor(ow, rom.data());
+            float temp = fast ? sensor.read_temperature_fast()
+                              : sensor.read_temperature();
+
+            uint8_t scratch[9];
+            if (raw) sensor.read_scratchpad(scratch);
+
+            char entry[256];
+
+            if (!raw) {
+                snprintf(entry, sizeof(entry),
+                    "{\"id\":\"%s\",\"temp\":%.2f},",
+                    rom_str, temp);
+            } else {
+                char rawbuf[64];
+                char *p = rawbuf;
+                for (int i = 0; i < 9; i++)
+                    p += sprintf(p, "%02X", scratch[i]);
+
+                snprintf(entry, sizeof(entry),
+                    "{\"id\":\"%s\",\"temp\":%.2f,\"raw\":\"%s\"},",
+                    rom_str, temp, rawbuf);
+            }
+
+            tempjson += entry;
+        }
+
+        if (tempjson.back() == ',')
+            tempjson.pop_back();
+
+        tempjson += "]}";
+        return tempjson;
+    }
+};
+
+
 
 
 static void project_tasks(void* arg)
@@ -75,6 +192,8 @@ static void project_tasks(void* arg)
     //verificar acá lo que necesite la tarea, por ejemplo si necesita esperar a que el WiFi esté conectado, o a que el NTP esté sincronizado, o a que algún recurso esté listo, etc. Para eso pueden usar eventos, flags, o simplemente revisar el estado de las cosas antes de entrar al loop principal de la tarea, y si no están listas, hacer un vTaskDelay y seguir revisando hasta que estén listas, para evitar que la tarea intente hacer cosas que no van a funcionar porque el sistema no está listo aún.
     dispatcher.registerCommand(std::make_unique<PinCommand>());
     dispatcher.registerCommand(std::make_unique<LedOnCommand>());
+    dispatcher.registerCommand(std::make_unique<LedSetCommand>());
+    dispatcher.registerCommand(std::make_unique<TempScanCommand>());
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
         seconds++;

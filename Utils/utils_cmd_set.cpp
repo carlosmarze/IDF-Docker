@@ -197,21 +197,6 @@ public:
    
 };
 
-class LedCommandB : public Command {
-public:
-    const char* name() const override { return "set_led"; }
-    const char* usage() const override { return "[nroLed=On/Off] - TBI Setea el estado del LED nroLed"; } // <-- Añadir
-    int minArgs() const override { return 2; }
-    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
-        const std::string &mode = args[0];
-        int gpio = std::stoi(args[1]);
-        bool on = (strcasecmp(mode.c_str(), "on") == 0);
-        ESP_LOGI(TAG, "LED gpio=%d -> %s", gpio, on ? "ON" : "OFF");
-        return "LED set";
-    }
-};
-
-
 
 
 // -----------------------------------------------------------------------------

@@ -15,6 +15,10 @@
 #include "utils_logger.h"
 #include "utils_files.h"
 #include "MisVariablesProyecto.h"
+#include "config_proyecto.h"
+#include "project_tasks.h"
+#include "pr_onewire.h"
+#include "pr_ds18b20.h"
 
 static const char* TAG = "SCHED_TASKS";
 static const char* g_tsurl = URL_BASE;
@@ -36,6 +40,35 @@ extern TSmessageRead  mensajeRead;
 void set_sched_inicio(bool esinicio) {
     g_first_run = esinicio;
 }
+void task_60_temp() {
+
+    if (!onewire_init) {
+        LOGW(TAG, "OneWire no inicializado. Inicializando.");
+        //init_onewire_sensors();
+        process_commands(CMD_SRC_SYSTEM, "tempscan rescan");
+        onewire_init = true;
+    }
+
+    if (g_onewire_pin == -1) {
+        LOGW(TAG, "OneWire pin no configurado.");
+        return;
+    }
+
+    if (g_sensors.empty()) {
+        LOGW(TAG, "No hay sensores DS18B20 detectados. Ejecutando rescan.");
+        process_commands(CMD_SRC_SYSTEM, "tempscan rescan");
+        return;
+    }
+
+    // Ejecutar el comando temp_scan
+    process_commands(CMD_SRC_SYSTEM, "tempscan");
+
+    LOGI(TAG, "Lectura periódica DS18B20: %s", tempjson.c_str());
+
+    // Si querés parsear el JSON para usar los valores internamente:
+    // parsear_json_temperaturas(json);
+}
+
 
 void task_60()
 {
