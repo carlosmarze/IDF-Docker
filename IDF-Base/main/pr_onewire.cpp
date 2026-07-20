@@ -67,6 +67,11 @@ uint8_t OneWire::read_byte() {
 
 void init_onewire_sensors()
 {
+    if(g_onewire_pin == -1) {
+        LOGW(TAG, "OneWire pin no configurado. Se ignora. Pin recibido: %d", g_onewire_pin);
+        //g_onewire_pin = ONEWIRE_DEFAULT_PIN;
+        return;
+    }
     OneWire ow((gpio_num_t)g_onewire_pin);
     OneWireSearch search(ow);
 
