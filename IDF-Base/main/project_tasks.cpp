@@ -97,7 +97,7 @@ public:
 **********************************************************************************/        
 class TempScanCommand : public Command {
 public:
-    const char* name() const override { return "temp_scan"; }
+    const char* name() const override { return "tempscan"; }
     const char* usage() const override {
         return "Lee sensores DS18B20. Opciones: fast, raw, id=<rom>, pin=<gpio>, rescan";
     }

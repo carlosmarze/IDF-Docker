@@ -6,9 +6,12 @@
 #include "utils_logger.h"
 #include <vector>
 
+#define TAG "ONEWIRE"
+
 OneWire::OneWire(gpio_num_t pin) : pin_(pin) {
     gpio_set_direction(pin_, GPIO_MODE_INPUT_OUTPUT_OD);
     gpio_set_pull_mode(pin_, GPIO_PULLUP_ONLY);
+    LOGI(TAG, "Inicializando OneWire en pin %d", pin_);
 }
 
 bool OneWire::reset() {
@@ -76,6 +79,6 @@ void init_onewire_sensors()
         g_sensors.push_back(r);
     }
 
-    LOGI("1WIRE", "Sensores detectados: %d", g_sensors.size());
+    LOGI(TAG, "Sensores detectados: %d", g_sensors.size());
     onewire_init = true; // Indica que la inicialización se ha completado
 }
