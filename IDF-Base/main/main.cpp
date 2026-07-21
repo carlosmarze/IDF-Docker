@@ -41,6 +41,7 @@
 #include "project_tasks.h"
 #include "MisVariablesProyecto.h"
 #include "config_proyecto.h"
+#include "pr_onewire.h"
 
 #define TAG "APP_MAIN"
 #define PAYLOAD_SIZE 128
@@ -463,4 +464,5 @@ void app_task(void *pv)
 extern "C" void app_main(void)
 {
     xTaskCreate(app_task, "app_task", 12288, NULL, 5, NULL);
+    
 }

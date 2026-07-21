@@ -12,15 +12,11 @@
 #include "utils_logger.h"
 
 #include "config_proyecto.h"
-
+#include "pr_onewire.h"
 
 #define TAG_CONFIG "PROYCONFIG"
 
-//int g_onewire_pin = ONEWIRE_DEFAULT_PIN; // Valor por defecto para el pin OneWire
-int g_onewire_pin = -1;   // sin configurar
-std::vector<std::array<uint8_t, 8>> g_sensors;
-bool onewire_init = false; // Variable global para indicar si el escaneo de OneWire se ha completado
-std::string tempjson; //json con la lectura de la temperatura
+
 
 static bool aplicar_config_proyecto_linea_directo(const char* linea) {
     if (strncmp(linea, "setonewirepin=", 14) == 0) {

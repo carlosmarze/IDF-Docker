@@ -8,8 +8,8 @@ idf_component_register(
         "sched_tasks.cpp"
         "project_tasks.cpp"
         "pr_onewire.cpp"
-        "pr_onewiresearch.cpp"
-        "pr_ds18b20.cpp"
+        #"pr_onewiresearch.cpp"
+        #"pr_ds18b20.cpp"
         "config_proyecto.cpp"
         INCLUDE_DIRS "."
         #EMBED_TXTFILES "certs/hivemq_ca.pem" Lo leemos desde FS, no lo cargamos en el firmware

@@ -197,7 +197,7 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
             strcmp(msg.name, "webupdate") == 0 || strcmp(msg.name, "more") == 0) {
             msg.log = false;
         }
-        printf("Procesado1: name=%s arg=%s", msg.name, msg.arg);
+        printf("\nProcesado1: name=%s arg=%s\n", msg.name, msg.arg);
         dispatcher.submit(msg);
         return;
     }
@@ -223,7 +223,7 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
             strcmp(msg.name, "webupdate") == 0 || strcmp(msg.name, "more") == 0) {
             msg.log = false;
         }
-        printf("Procesado2: name=%s arg=%s", msg.name, msg.arg);
+        printf("\nProcesado2: name=%s arg=%s\n", msg.name, msg.arg);
         dispatcher.submit(msg);
         return;
     }
@@ -241,7 +241,7 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
             strcmp(msg.name, "webupdate") == 0 || strcmp(msg.name, "more") == 0) {
             msg.log = false;
         }
-        printf("Procesado3: name=%s arg=%s", msg.name, msg.arg);
+        printf("\nProcesado3: name=%s arg=%s\n", msg.name, msg.arg);
         dispatcher.submit(msg);
     }
 }

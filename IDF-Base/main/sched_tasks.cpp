@@ -18,7 +18,7 @@
 #include "config_proyecto.h"
 #include "project_tasks.h"
 #include "pr_onewire.h"
-#include "pr_ds18b20.h"
+//#include "pr_ds18b20.h"
 
 static const char* TAG = "SCHED_TASKS";
 static const char* g_tsurl = URL_BASE;
