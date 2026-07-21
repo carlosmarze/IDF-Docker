@@ -117,8 +117,14 @@ public:
         // PARSE ARGUMENTOS
         // -----------------------------
         for (const auto &a : args) {
-
+            
             if (strcasecmp(a.c_str(), "read") == 0) {
+                OneWireCommand cmd;
+                cmd.type = OneWireCmdType::READ_ALL;
+
+                if (xQueueSend(q_onewire, &cmd, 0) != pdTRUE)
+                    return "{\"error\":\"cola onewire llena\"}";
+                    
                 const int max_wait_ms = 1000;   // 1 segundo
                 const int step_ms = 50;         // chequeo cada 50 ms
                 int waited = 0;
@@ -129,6 +135,7 @@ public:
                 if(!is_onewire_idle()) {
                     return "{\"error\":\"OneWire ocupado, Reintentar\"}";
                 }
+                printf("OneWire idle, devolviendo último json generado: %s", tempjson.c_str());
                 return tempjson; //devuelvo el último json generado
             }
                 
@@ -203,97 +210,6 @@ public:
     }
 };
 
-
-/*
-
-class TempScanCommandOld : public Command {
-public:
-    const char* name() const override { return "tempscan"; }
-    const char* usage() const override {
-        return "Lee sensores DS18B20. Opciones: fast, raw, id=<rom>, pin=<gpio>, rescan";
-    }
-    int minArgs() const override { return 0; }
-
-    std::string execute(cmd_source_t, const std::vector<std::string>& args) override {
-
-        bool fast = false;
-        bool raw = false;
-        bool do_rescan = false;
-        std::string target_id;
-
-        // -----------------------------
-        // PARSE ARGUMENTOS
-        // -----------------------------
-        for (const auto &a : args) {
-            if (strcasecmp(a.c_str(), "fast") == 0) fast = true;
-            else if (strcasecmp(a.c_str(), "raw") == 0) raw = true;
-            else if (strcasecmp(a.c_str(), "rescan") == 0) do_rescan = true;
-            else if (a.rfind("pin=", 0) == 0) g_onewire_pin = std::stoi(a.substr(4));
-            else if (a.rfind("id=", 0) == 0) target_id = a.substr(3);
-        }
-
-        // -----------------------------
-        // RESCAN SI SE PIDIÓ
-        // -----------------------------
-        if (do_rescan) {
-            init_onewire_sensors();
-        }
-
-        OneWire ow((gpio_num_t)g_onewire_pin);
-
-        // -----------------------------
-        // LECTURA DE TEMPERATURAS
-        // -----------------------------
-        //std::string json = "{\"sensors\":[";
-        tempjson = "{\"sensors\":["; //variable definida en config_proyecto.h y usada en sched_tasks.cpp para enviar la lectura periódica de temperatura a TSComm
-
-        for (auto &rom : g_sensors) {
-
-            char rom_str[17];
-            snprintf(rom_str, sizeof(rom_str),
-                "%02X%02X%02X%02X%02X%02X%02X%02X",
-                rom[0], rom[1], rom[2], rom[3],
-                rom[4], rom[5], rom[6], rom[7]);
-
-            if (!target_id.empty() && target_id != rom_str)
-                continue;
-
-            DS18B20 sensor(ow, rom.data());
-            float temp = fast ? sensor.read_temperature_fast()
-                              : sensor.read_temperature();
-
-            uint8_t scratch[9];
-            if (raw) sensor.read_scratchpad(scratch);
-
-            char entry[256];
-
-            if (!raw) {
-                snprintf(entry, sizeof(entry),
-                    "{\"id\":\"%s\",\"temp\":%.2f},",
-                    rom_str, temp);
-            } else {
-                char rawbuf[64];
-                char *p = rawbuf;
-                for (int i = 0; i < 9; i++)
-                    p += sprintf(p, "%02X", scratch[i]);
-
-                snprintf(entry, sizeof(entry),
-                    "{\"id\":\"%s\",\"temp\":%.2f,\"raw\":\"%s\"},",
-                    rom_str, temp, rawbuf);
-            }
-
-            tempjson += entry;
-        }
-
-        if (tempjson.back() == ',')
-            tempjson.pop_back();
-
-        tempjson += "]}";
-        return tempjson;
-    }
-};
-
-*/
 
 
 static void project_tasks(void* arg)
