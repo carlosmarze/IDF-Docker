@@ -129,7 +129,7 @@ public:
                 //Lo pudo encolar, ahora espero a que la tarea de onewire lo procese y genere el json
                 set_onewire_idle(false); //marco que estoy procesando el comando. En realidad lo procesará la tarea que tome la cola
 
-                const int max_wait_ms = 1000;   // 1 segundo
+                const int max_wait_ms = 2000;   // 2 segundos
                 const int step_ms = 50;         // chequeo cada 50 ms
                 int waited = 0;
                 while (!is_onewire_idle() && waited < max_wait_ms) {
@@ -142,7 +142,7 @@ public:
                 printf("OneWire idle, devolviendo último json generado: %s", tempjson.c_str());
                 return tempjson; //devuelvo el último json generado
             }
-            
+
             if (strcasecmp(a.c_str(), "read") == 0)
                 return tempjson; //devuelvo el último json generado
                 
