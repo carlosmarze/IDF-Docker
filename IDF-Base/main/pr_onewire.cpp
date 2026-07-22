@@ -93,28 +93,40 @@ void init_onewire_sensors()
     }
 
     OneWire ow((gpio_num_t)g_onewire_pin);
-    OneWireSearch search(ow);
 
-    uint8_t rom[8];
-    g_sensors.clear();
+    for(int i = 0; i < 2; i++) {
+        ow.reset();
+        vTaskDelay(pdMS_TO_TICKS(10));   // estabilizar el bus
 
-    LOGI(TAG, "Buscando sensores en pin %d...", g_onewire_pin);
+        OneWireSearch search(ow);
 
-    while (search.next(rom)) {
+        uint8_t rom[8];
+        g_sensors.clear();
 
-        // Copiar ROM al vector global
-        std::array<uint8_t, 8> r;
-        memcpy(r.data(), rom, 8);
-        g_sensors.push_back(r);
+        LOGI(TAG, "Buscando sensores en pin %d...", g_onewire_pin);
 
-        // Convertir ROM a string para log
-        char rom_str[17];
-        snprintf(rom_str, sizeof(rom_str),
-            "%02X%02X%02X%02X%02X%02X%02X%02X",
-            rom[0], rom[1], rom[2], rom[3],
-            rom[4], rom[5], rom[6], rom[7]);
+        while (search.next(rom)) {
 
-        LOGI(TAG, "Sensor detectado: %s", rom_str);
+            // Copiar ROM al vector global
+            std::array<uint8_t, 8> r;
+            memcpy(r.data(), rom, 8);
+            g_sensors.push_back(r);
+
+            // Convertir ROM a string para log
+            char rom_str[17];
+            snprintf(rom_str, sizeof(rom_str),
+                "%02X%02X%02X%02X%02X%02X%02X%02X",
+                rom[0], rom[1], rom[2], rom[3],
+                rom[4], rom[5], rom[6], rom[7]);
+
+            LOGI(TAG, "Sensor detectado: %s", rom_str);
+        }
+        
+        if(g_sensors.empty()) {
+            LOGW(TAG, "No se encontraron sensores. Reintento %d.", i + 1);
+        } else {
+            break; // Salir del bucle después de un intento exitoso
+        }
     }
 
     LOGI(TAG, "Total Sensores: %d", g_sensors.size());

@@ -45,7 +45,7 @@ void task_60_temp() {
     if (!onewire_init) {
         LOGW(TAG, "OneWire no inicializado. Inicializando.");
         //init_onewire_sensors();
-        process_commands(CMD_SRC_SYSTEM, "tempscan rescan");
+        process_commands(CMD_SRC_SYSTEM, "tempscan");
         onewire_init = true;
     }
 
