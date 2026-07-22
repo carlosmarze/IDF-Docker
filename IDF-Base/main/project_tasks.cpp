@@ -96,12 +96,13 @@ public:
         //tempscan raw devuelve scratchpad en hex además de la temperatura
         //tempscan pin=5 usa otro GPIO
         //tempscan read Lee el json último generado
+        //tempscan readnow hace una lectura y manda el json
 **********************************************************************************/        
 class TempScanCommand : public Command {
 public:
     const char* name() const override { return "tempscan"; }
     const char* usage() const override {
-        return "Lee async sensores DS18B20. Opciones: fast, raw, id=[rom], pin=[gpio], rescan, read";
+        return "Lee async sensores DS18B20. Opciones: fast, raw, id=[rom], pin=[gpio], rescan, read, readnow";
     }
     int minArgs() const override { return 0; }
 
@@ -111,6 +112,7 @@ public:
         bool raw = false;
         bool do_rescan = false;
         bool pin_changed = false;
+        
         std::string target_id;
 
         // -----------------------------
@@ -118,13 +120,15 @@ public:
         // -----------------------------
         for (const auto &a : args) {
             
-            if (strcasecmp(a.c_str(), "read") == 0) {
+            if (strcasecmp(a.c_str(), "readnow") == 0) {
                 OneWireCommand cmd;
                 cmd.type = OneWireCmdType::READ_ALL;
 
                 if (xQueueSend(q_onewire, &cmd, 0) != pdTRUE)
                     return "{\"error\":\"cola onewire llena\"}";
-                    
+                //Lo pudo encolar, ahora espero a que la tarea de onewire lo procese y genere el json
+                set_onewire_idle(false); //marco que estoy procesando el comando. En realidad lo procesará la tarea que tome la cola
+
                 const int max_wait_ms = 1000;   // 1 segundo
                 const int step_ms = 50;         // chequeo cada 50 ms
                 int waited = 0;
@@ -138,6 +142,9 @@ public:
                 printf("OneWire idle, devolviendo último json generado: %s", tempjson.c_str());
                 return tempjson; //devuelvo el último json generado
             }
+            
+            if (strcasecmp(a.c_str(), "read") == 0)
+                return tempjson; //devuelvo el último json generado
                 
             if (strcasecmp(a.c_str(), "fast") == 0)
                 fast = true;

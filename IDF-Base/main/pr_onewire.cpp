@@ -20,6 +20,9 @@ static bool first_init = true; //para inicializar la cola y la tarea de onewire 
 bool is_onewire_idle() {
     return onewire_idle;
 }
+void set_onewire_idle(bool stat) {
+    onewire_idle = stat;
+}
 
 OneWire::OneWire(gpio_num_t pin) : pin_(pin) {   //init, se corre al crear la clase
     gpio_set_direction(pin_, GPIO_MODE_INPUT_OUTPUT_OD);
@@ -157,7 +160,7 @@ void cmd_onewire(const OneWireCommand &cmd)
 
     OneWire ow((gpio_num_t)g_onewire_pin);
 
-    std::string tempjson = "{\"sensors\":[";
+    tempjson = "{\"sensors\":[";
 
     for (auto &rom : g_sensors) {
 

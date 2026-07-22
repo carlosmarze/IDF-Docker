@@ -37,6 +37,7 @@ void init_onewire_sensors();
 void task_onewire(void *p);
 void cmd_onewire(const OneWireCommand &cmd);
 bool is_onewire_idle();
+void set_onewire_idle(bool stat);
 
 class OneWire {
 public:
