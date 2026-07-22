@@ -12,6 +12,7 @@
 
 #include "utils_wifi.h"
 #include "utils_mqtt.h" // Para detener MQTT si se pierde Wi-Fi
+#include "utils_webs.h" // Para detener Server si se pierde Wi-Fi
 #include "utils_logger.h" // Para logging
 #include "utils_config.h" // Para save_wifi_network
 #include "utils_events.h" // Para dejar eventos en la cola global
@@ -96,8 +97,11 @@ static void wifi_event_handler(void* arg,
                 xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
 
                 // Cortar MQTT si corresponde
+                mqtt_app_stop();
+                // Cortar Server si corresponde
+                stop_webserver();
                 if (!g_ota_en_progreso) {
-                    mqtt_app_stop();
+                    //mqtt_app_stop();
                 }
 
                 // 👇 IMPORTANTE:
@@ -190,9 +194,13 @@ static void ip_event_handler(void* arg,
         ESP_LOGW(TAG, "IP Perdida.");
         wifi_ready = false;
         xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-
+        
+        mqtt_app_stop(); 
+        stop_webserver();
+        
         if (!g_ota_en_progreso) {
-            mqtt_app_stop();
+            // mqtt_app_stop(); //podría
+            //server_stop();
         }
         break;
 

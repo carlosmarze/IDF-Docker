@@ -201,6 +201,7 @@ void check_ntp_status_task(void *pvParameter) {
 // ============================================================
 void service_starter_task(void *pvParameters)
 {
+    #define TAG2 "SERVICE"
     LOGI("SYS", "Service Starter: Esperando resolución de OTA...");
 
     int timeout_ota = 0;
@@ -210,14 +211,14 @@ void service_starter_task(void *pvParameters)
     }
 
     if (g_ota_en_progreso) {
-        LOGI("SYS", "OTA excedió tiempo. Liberando servicios.");
+        LOGI(TAG2, "OTA excedió tiempo. Liberando servicios.");
         g_ota_en_progreso = false;
     }
 
-    LOGI("SYS", "Service Starter activo.");
+    LOGI(TAG2, "Service Starter activo.");
 
     //static bool first_run_done = false;
-    static bool web_started = false;
+   // static bool web_started = false;
     static bool aux_tasks_started = false;
     static bool web_tasks_started = false;
 
@@ -233,12 +234,6 @@ void service_starter_task(void *pvParameters)
             continue;
         }
 
-        if (!mqtt_is_initialized()) {
-            ESP_LOGI("SERVICE", "WiFi OK. Arrancando MQTT...");
-             mqtt_app_start();
-          
-        }
-
         if (!web_tasks_started) {
             xTaskCreate(webserver_task,
                 "webserver_task",
@@ -249,9 +244,24 @@ void service_starter_task(void *pvParameters)
             web_tasks_started = true;
         }
 
-        if (!web_started) {
-            start_webserver(global_dispatcher_ptr);
-            web_started = true;
+        if(wifi_ready) {
+            if (!mqtt_is_initialized()) {
+                ESP_LOGI(TAG2, "WiFi OK. Arrancando MQTT...");
+                mqtt_app_start();
+            
+            }
+        
+            if (!server_running()) {
+                if(!first_run_done) {
+                    ESP_LOGI(TAG2, "Arrancando WebServer...");
+                    start_webserver(global_dispatcher_ptr);
+                }
+                else {
+                    ESP_LOGI(TAG2, "RE-Arrancando WebServer...");
+                    restart_webserver(global_dispatcher_ptr);
+                }
+                
+            }
         }
 
         if (!aux_tasks_started) {
@@ -260,7 +270,7 @@ void service_starter_task(void *pvParameters)
         }
 
         if (!first_run_done) {
-            ESP_LOGI("SERVICE", "FIRST RUN...");
+            ESP_LOGI(TAG2, "FIRST RUN...");
 
             //set_sched_inicio(true); //lo movemos antes de arrancar scheduler en app_task
             task_60();
@@ -270,7 +280,7 @@ void service_starter_task(void *pvParameters)
             set_sched_inicio(false);
 
             first_run_done = true;
-            ESP_LOGI("SERVICE", "FIRST RUN completado.");
+            ESP_LOGI(TAG2, "FIRST RUN completado.");
         }
 
         vTaskDelay(pdMS_TO_TICKS(2000));

@@ -131,11 +131,11 @@ void task_onewire(void *p)
     while (true) {
 
         if (xQueueReceive(q_onewire, &cmd, portMAX_DELAY)) {
-
+            init_onewire_sensors(); //lo ponemos porque si no, cada tanto, se cuelga la lectura
             switch (cmd.type) {
 
                 case OneWireCmdType::RESCAN:{
-                    init_onewire_sensors();
+                    //init_onewire_sensors();
                     break;
                 }
                 case OneWireCmdType::READ_ALL:

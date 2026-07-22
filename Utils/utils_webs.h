@@ -15,6 +15,7 @@ class CommandDispatcher;
 // Función para iniciar el servidor web
 void webserver_task(void *arg);
 void start_webserver(CommandDispatcher* disp_ptr);
+void restart_webserver(CommandDispatcher* disp_ptr);
 void enviar_respuesta_async(httpd_handle_t server, int fd, const char* msg);
 // Función para enviar desde cualquier comando a TODOS los websockets conectados
 void ws_broadcast_message(const char* mensaje);
@@ -24,8 +25,11 @@ void set_ws_server_handle(httpd_handle_t handle);
 void cleanup_before_wifi_restart();
 void force_session_cleanup(); // Llama a esto antes de reiniciar el WiFi
 extern httpd_handle_t global_webserver_handle;
+//extern bool web_started;
 bool server_running();
 void stop_webserver();
+
+//bool is_webserver_running();
 
 
 #endif // WEB_SERVER_H

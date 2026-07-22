@@ -40,7 +40,11 @@ static const char *TAG = "UTILS_SERVER";
 static httpd_handle_t server = NULL;
 static int current_token = 0; // Token numérico aleatorio
 static char authorized_ip[16] = {0}; // Aquí guardamos la IP autorizada
+//static bool web_started = false; // Variable global para indicar si el servidor web está corriendo
 
+//bool is_webserver_running(){
+  //  return web_started;
+//}
 //tamaño del buffer de una respuesta HTML dinámica
 #define HTML_BUFFER_SIZE 256
 // Credenciales
@@ -448,8 +452,10 @@ void start_webserver(CommandDispatcher* disp_ptr) {
         
 
         LOGI(TAG, "Servidor HTTP iniciado en puerto %d", config.server_port);
+        //web_started = true; // Marcamos que el servidor web está corriendo
     } else {
         LOGE(TAG, "Error al iniciar servidor HTTP");
+        //web_started = false; // Marcamos que el servidor web NO está corriendo
     }
 }
 
