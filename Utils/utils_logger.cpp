@@ -124,7 +124,7 @@ void write_system_log_new(log_level_t level, const char* tag, const char* format
         case LOG_LEVEL_DEBUG:
             ESP_LOGD(tag, "%s", message);
             break;
-        case LOG_LEVEL_INFO:
+        case LOG_LEVEL_INFO: case LOG_LEVEL_NOLOG: // No se realiza logging en flash, pero si en consola
             ESP_LOGI(tag, "%s", message);
             break;
         case LOG_LEVEL_WARN:
@@ -133,9 +133,7 @@ void write_system_log_new(log_level_t level, const char* tag, const char* format
         case LOG_LEVEL_ERROR:
             ESP_LOGE(tag, "%s", message);
             break;
-        case LOG_LEVEL_NOLOG:
-            // No se realiza logging
-            break;
+        
         
     }
     
@@ -166,7 +164,10 @@ void write_system_log_new(log_level_t level, const char* tag, const char* format
     }
 
     // 6. Escritura al archivo
-    fprintf(f, "[%s] [%s] %s\n", timestamp, tag, message);
+    if(level != LOG_LEVEL_NOLOG) {
+        fprintf(f, "[%s] [%s] %s\n", timestamp, tag, message);
+    }
+    //fprintf(f, "[%s] [%s] %s\n", timestamp, tag, message);
 
     // 7. Forzar escritura a Flash
     fflush(f); 
