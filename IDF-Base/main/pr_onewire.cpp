@@ -1,10 +1,10 @@
 #include "pr_onewire.h"
-//#include "pr_onewiresearch.h"
 #include "config_proyecto.h"
+#include "utils_logger.h"
 
 #include "driver/gpio.h"
-#include "utils_logger.h"
 #include <vector>
+#include "esp_log.h"
 
 #define TAG "ONEWIRE"
 
@@ -16,6 +16,7 @@ std::string tempjson; //json con la lectura de la temperatura
 
 static bool onewire_idle = true; //para leer el resultado
 static bool first_init = true; //para inicializar la cola y la tarea de onewire solo una vez
+static std::vector<SensorReading> last_readings;
 
 bool is_onewire_idle() {
     return onewire_idle;
@@ -103,7 +104,7 @@ void init_onewire_sensors()
         uint8_t rom[8];
         g_sensors.clear();
 
-        LOGI(TAG, "Buscando sensores en pin %d...", g_onewire_pin);
+        LOGN(TAG, "Buscando sensores en pin %d...", g_onewire_pin);
 
         while (search.next(rom)) {
 
@@ -119,7 +120,7 @@ void init_onewire_sensors()
                 rom[0], rom[1], rom[2], rom[3],
                 rom[4], rom[5], rom[6], rom[7]);
 
-            LOGI(TAG, "Sensor detectado: %s", rom_str);
+            LOGN(TAG, "Sensor detectado: %s", rom_str);
         }
         
         if(g_sensors.empty()) {
@@ -129,7 +130,7 @@ void init_onewire_sensors()
         }
     }
 
-    LOGI(TAG, "Total Sensores: %d", g_sensors.size());
+    LOGN(TAG, "Total Sensores: %d", g_sensors.size());
     onewire_init = true;
 }
 
@@ -161,9 +162,29 @@ void task_onewire(void *p)
     }
 }
 
+
+bool readings_changed(const std::vector<SensorReading>& oldr,
+                      const std::vector<SensorReading>& newr)
+{
+    if (oldr.size() != newr.size())
+        return true;
+
+    for (size_t i = 0; i < newr.size(); i++) {
+        if (oldr[i].id != newr[i].id)
+            return true;
+
+        if (fabs(oldr[i].temp - newr[i].temp) > 0.01f)   // tolerancia mínima
+            return true;
+    }
+
+    return false;
+}
+
+
 //Antes en comando
 void cmd_onewire(const OneWireCommand &cmd)
 {
+    std::vector<SensorReading> new_readings; //nueva lectura
     onewire_idle = false; //marco que estoy procesando el comando
     if (g_onewire_pin < 0) {
         LOGE(TAG, "Pin no configurado");
@@ -204,6 +225,11 @@ void cmd_onewire(const OneWireCommand &cmd)
                 temp = sensor.read_temperature();
                 break;
         }
+        //guardo la lectura en la estructura para poder compararla con la anteior y ver si hubo cambios
+        SensorReading sr;
+        sr.id = rom_str;
+        sr.temp = temp;
+        new_readings.push_back(sr);
 
         char entry[256];
 
@@ -229,8 +255,23 @@ void cmd_onewire(const OneWireCommand &cmd)
         tempjson.pop_back();
 
     tempjson += "]}";
+
+    //chequeamos si hubo cambios respecto a la lectura anterior
+    bool changed = readings_changed(last_readings, new_readings);
+
+    if (changed) {
+        LOGI(TAG, "Lectura cambio: %s", tempjson.c_str());
+    } else {
+        LOGN(TAG, "Lectura igual, no se loguea detalle"); //No se guarda log
+    }
+
+
+    last_readings = new_readings;
+
     onewire_idle = true; //marco que terminé de procesar el comando
-    LOGI(TAG, "Lectura: %s", tempjson.c_str());
+    LOGN(TAG, "Lectura: %s", tempjson.c_str());
+    
+
 }
 
 

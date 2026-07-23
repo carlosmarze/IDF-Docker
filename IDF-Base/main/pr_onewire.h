@@ -29,6 +29,13 @@ struct OneWireCommand {
     std::string id;   // opcional
 };
 
+struct SensorReading {
+    std::string id;
+    float temp;
+};
+
+//extern std::vector<SensorReading> last_readings;
+
 extern QueueHandle_t q_onewire;
 
 

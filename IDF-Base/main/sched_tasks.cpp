@@ -63,7 +63,7 @@ void task_60_temp() {
     // Ejecutar el comando temp_scan
     process_commands(CMD_SRC_SYSTEM, "tempscan");
 
-    LOGI(TAG, "Lectura periódica DS18B20: %s", tempjson.c_str());
+    ESP_LOGI(TAG, "Lectura periódica DS18B20: %s", tempjson.c_str());
 
     // Si querés parsear el JSON para usar los valores internamente:
     // parsear_json_temperaturas(json);

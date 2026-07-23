@@ -134,9 +134,11 @@ static bool process_json_command(cmd_source_t src, const std::string& json_str, 
     }
     snprintf(msg.arg, sizeof(msg.arg), "%s", full_args.c_str());
 
-    // Desactivar log para comandos largos
+    // Desactivar log para comandos largos o muy frecuentes - Mejorarlo con una tabla luego.
     if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
-        strcmp(msg.name, "webupdate") == 0 || strcmp(msg.name, "more") == 0) {
+        strcmp(msg.name, "webupdate") == 0 || 
+        strcmp(msg.name, "tempscan") == 0 ||
+        strcmp(msg.name, "more") == 0) {
         msg.log = false;
     }
 
