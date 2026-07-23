@@ -10,6 +10,7 @@
 #include <cctype>
 #include <sstream>
 #include <cJSON.h>
+#include <unordered_set>
 
 #include "utils_cmd_processor.h"
 #include "utils_cmd_dispatcher.h"
@@ -43,6 +44,21 @@ static std::string json_to_string(cJSON* json) {
     free(str);
     return result;
 }
+
+//Chequeo si debe ser logueado o no el comando, para desactivar log de comandos frecuentes o largos
+bool checklog(const std::string& name) 
+{  //false, no loguear, true loguear. Si está en la lista sale false, si no está sale true
+    static const std::unordered_set<std::string> no_log_cmds = {
+        "help",
+        "dir",
+        "webupdate",
+        "tempscan",
+        "more"
+    };
+
+    return no_log_cmds.count(name) == 0;
+}
+
 
 // Procesa comandos en formato JSON
 static bool process_json_command(cmd_source_t src, const std::string& json_str, int client_fd) {
@@ -135,12 +151,13 @@ static bool process_json_command(cmd_source_t src, const std::string& json_str, 
     snprintf(msg.arg, sizeof(msg.arg), "%s", full_args.c_str());
 
     // Desactivar log para comandos largos o muy frecuentes - Mejorarlo con una tabla luego.
-    if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
+    msg.log = checklog(msg.name); // Desactivar log para ciertos comandos como help, dir, webupdate, tempscan, more
+    /*if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
         strcmp(msg.name, "webupdate") == 0 || 
         strcmp(msg.name, "tempscan") == 0 ||
         strcmp(msg.name, "more") == 0) {
         msg.log = false;
-    }
+    }*/
 
     dispatcher.submit(msg);
     return true;
@@ -195,10 +212,12 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
         snprintf(msg.name, sizeof(msg.name), "%s", tokens[0].name.c_str());
         snprintf(msg.arg, sizeof(msg.arg), "%s", tokens[0].arg.c_str());
         
-        if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
+        msg.log = checklog(msg.name); // Desactivar log para ciertos comandos como help, dir, webupdate, tempscan, more
+        /*if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
             strcmp(msg.name, "webupdate") == 0 || strcmp(msg.name, "more") == 0) {
             msg.log = false;
         }
+        */
         printf("\nProcesado1: name=%s arg=%s\n", msg.name, msg.arg);
         dispatcher.submit(msg);
         return;
@@ -221,10 +240,11 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
         snprintf(msg.name, sizeof(msg.name), "%s", comando.c_str());
         snprintf(msg.arg, sizeof(msg.arg), "%s", args_concat.c_str());
         
-        if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
+        msg.log = checklog(msg.name); // Desactivar log para ciertos comandos como help, dir, webupdate, tempscan, more
+        /*if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
             strcmp(msg.name, "webupdate") == 0 || strcmp(msg.name, "more") == 0) {
             msg.log = false;
-        }
+        }*/
         printf("\nProcesado2: name=%s arg=%s\n", msg.name, msg.arg);
         dispatcher.submit(msg);
         return;
@@ -239,10 +259,11 @@ void process_commands(cmd_source_t src, const std::string &line, char sep1, char
         snprintf(msg.name, sizeof(msg.name), "%s", pt.name.c_str());
         snprintf(msg.arg, sizeof(msg.arg), "%s", pt.arg.c_str());
         
-        if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
+        msg.log = checklog(msg.name); // Desactivar log para ciertos comandos como help, dir, webupdate, tempscan, more
+        /*if (strcmp(msg.name, "help") == 0 || strcmp(msg.name, "dir") == 0 ||
             strcmp(msg.name, "webupdate") == 0 || strcmp(msg.name, "more") == 0) {
             msg.log = false;
-        }
+        }*/
         printf("\nProcesado3: name=%s arg=%s\n", msg.name, msg.arg);
         dispatcher.submit(msg);
     }
