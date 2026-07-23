@@ -173,7 +173,7 @@ bool readings_changed(const std::vector<SensorReading>& oldr,
         if (oldr[i].id != newr[i].id)
             return true;
 
-        if (fabs(oldr[i].temp - newr[i].temp) > 0.01f)   // tolerancia mínima
+        if (fabs(oldr[i].temp - newr[i].temp) > TEMPTOLERANCIA)   // tolerancia mínima
             return true;
     }
 
