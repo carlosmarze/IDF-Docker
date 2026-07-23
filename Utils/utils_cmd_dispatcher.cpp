@@ -155,8 +155,13 @@ void CommandDispatcher::dispatcherTask() {
             }
         }  
 
+        if(m.src == CMD_SRC_SYSTEM) { //comandos del scheduler por ej
+            ESP_LOGI(TAG, "SRC: %d - Comando: %s %s args#:%d", m.src, cmname.c_str(), m.arg, (int)args.size()); //ver de mejorar
+        }
+        else {
+            LOGI(TAG, "SRC: %d - Comando: %s %s args#:%d", m.src, cmname.c_str(), m.arg, (int)args.size());
+        }
 
-        LOGI(TAG, "SRC: %d - Comando: %s %s args#:%d", m.src, cmname.c_str(), m.arg, (int)args.size());
         //write_system_log(TAG, log_msg.c_str());
         //ESP_LOGI(TAG, "%s", log_msg.c_str());
 
