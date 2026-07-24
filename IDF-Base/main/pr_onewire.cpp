@@ -256,14 +256,7 @@ void cmd_onewire(const OneWireCommand &cmd)
 
     tempjson += "]}";
 
-    //chequeamos si hubo cambios respecto a la lectura anterior
-    bool changed = readings_changed(last_readings, new_readings);
-
-    if (changed) {
-        LOGI(TAG, "Lectura cambio: %s", tempjson.c_str());
-    } else {
-        LOGN(TAG, "Lectura igual, no se loguea detalle"); //No se guarda log
-    }
+    
 
     //Control de falsas mediciones. Si la temperatura difiere mucho de la anterior, no la guardamos como última lectura
     if (!last_readings.empty() && !new_readings.empty()) {
@@ -286,6 +279,15 @@ void cmd_onewire(const OneWireCommand &cmd)
         last_readings = new_readings;
     }
 
+    //chequeamos si hubo cambios respecto a la lectura anterior
+    bool changed = readings_changed(last_readings, new_readings);
+
+    if (changed) {
+        LOGI(TAG, "Lectura cambio: %s", tempjson.c_str());
+    } else {
+        LOGN(TAG, "Lectura igual, no se loguea detalle"); //No se guarda log
+    }
+    
     onewire_idle = true; //marco que terminé de procesar el comando
     LOGN(TAG, "Lectura: %s", tempjson.c_str());
     
