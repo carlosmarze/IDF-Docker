@@ -265,8 +265,26 @@ void cmd_onewire(const OneWireCommand &cmd)
         LOGN(TAG, "Lectura igual, no se loguea detalle"); //No se guarda log
     }
 
-
-    last_readings = new_readings;
+    //Control de falsas mediciones. Si la temperatura difiere mucho de la anterior, no la guardamos como última lectura
+    if (!last_readings.empty() && !new_readings.empty()) {
+        for (size_t i = 0; i < new_readings.size(); i++) {
+            for (size_t j = 0; j < last_readings.size(); j++) {
+                if (new_readings[i].id == last_readings[j].id) {
+                    if (fabs(new_readings[i].temp - last_readings[j].temp) > TEMPMAXDELTA) { //diferencia mayor a TEMPMAXDELTA
+                        LOGW(TAG, "Lectura de sensor %s difiere mucho de la anterior (%.2f vs %.2f). Ignorando cambio.",
+                            new_readings[i].id.c_str(),
+                            new_readings[i].temp,
+                            last_readings[j].temp);
+                        new_readings[i].temp = last_readings[j].temp; //restauramos la lectura anterior
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    else if (last_readings.empty() && !new_readings.empty()) {
+        last_readings = new_readings;
+    }
 
     onewire_idle = true; //marco que terminé de procesar el comando
     LOGN(TAG, "Lectura: %s", tempjson.c_str());
