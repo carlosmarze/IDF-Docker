@@ -5,6 +5,8 @@
 #include "driver/gpio.h"
 #include <vector>
 #include "esp_log.h"
+#include <unordered_map> //para reading_changed
+#include <cmath> //para reading_changed
 
 #define TAG "ONEWIRE"
 
@@ -163,7 +165,7 @@ void task_onewire(void *p)
 }
 
 
-bool readings_changed(const std::vector<SensorReading>& oldr,
+bool readings_changedOLD(const std::vector<SensorReading>& oldr,
                       const std::vector<SensorReading>& newr)
 {
     if (oldr.size() != newr.size())
@@ -182,7 +184,173 @@ bool readings_changed(const std::vector<SensorReading>& oldr,
 
 
 //Antes en comando
+
+
+bool readings_changed(const std::vector<SensorReading>& oldr,
+                      const std::vector<SensorReading>& newr)
+{
+    // Si distinto número de sensores, considerar cambio
+    if (oldr.size() != newr.size())
+        return true;
+
+    std::unordered_map<std::string, float> oldmap;
+    oldmap.reserve(oldr.size());
+    for (const auto &s : oldr) oldmap[s.id] = s.temp;
+
+    for (const auto &s : newr) {
+        auto it = oldmap.find(s.id);
+        if (it == oldmap.end()) {
+            // sensor nuevo o ID distinto
+            return true;
+        }
+        if (std::fabs(it->second - s.temp) > TEMPTOLERANCIA) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void cmd_onewire(const OneWireCommand &cmd)
+{
+    std::vector<SensorReading> new_readings; // nueva lectura estructurada
+    std::vector<std::string> entries;        // entradas JSON por sensor (se actualizarán si hace falta)
+    new_readings.reserve(g_sensors.size());
+    entries.reserve(g_sensors.size());
+
+    onewire_idle = false;
+    if (g_onewire_pin < 0) {
+        LOGE(TAG, "Pin no configurado");
+        onewire_idle = true;
+        return;
+    }
+
+    OneWire ow((gpio_num_t)g_onewire_pin);
+
+    // 1) Leer sensores y construir new_readings + entries (pero NO concatenar aún)
+    for (auto &rom : g_sensors) {
+
+        char rom_str[17];
+        snprintf(rom_str, sizeof(rom_str),
+            "%02X%02X%02X%02X%02X%02X%02X%02X",
+            rom[0], rom[1], rom[2], rom[3],
+            rom[4], rom[5], rom[6], rom[7]);
+
+        if (cmd.type == OneWireCmdType::READ_ONE && cmd.id != rom_str)
+            continue;
+
+        DS18B20 sensor(ow, rom.data());
+
+        float temp = 0;
+        uint8_t scratch[9];
+
+        switch (cmd.type) {
+            case OneWireCmdType::READ_FAST:
+                temp = sensor.read_temperature_fast();
+                break;
+
+            case OneWireCmdType::READ_RAW:
+                temp = sensor.read_temperature();
+                sensor.read_scratchpad(scratch);
+                break;
+
+            default:
+                temp = sensor.read_temperature();
+                break;
+        }
+
+        // Guardar lectura estructurada
+        SensorReading sr;
+        sr.id = rom_str;
+        sr.temp = temp;
+        new_readings.push_back(sr);
+
+        // Construir la entrada JSON correspondiente (la mantendremos y la actualizaremos si hace falta)
+        char entry[256];
+        if (cmd.type != OneWireCmdType::READ_RAW) {
+            snprintf(entry, sizeof(entry),
+                "{\"id\":\"%s\",\"temp\":%.2f},",
+                rom_str, temp);
+        } else {
+            char rawbuf[64];
+            char *p = rawbuf;
+            for (int i = 0; i < 9; i++)
+                p += sprintf(p, "%02X", scratch[i]);
+
+            snprintf(entry, sizeof(entry),
+                "{\"id\":\"%s\",\"temp\":%.2f,\"raw\":\"%s\"},",
+                rom_str, temp, rawbuf);
+        }
+        entries.emplace_back(entry);
+    }
+
+    // 2) Control de falsas mediciones: si difiere mucho, restaurar en new_readings y actualizar la entrada correspondiente
+    if (!last_readings.empty() && !new_readings.empty()) {
+        // crear mapa id -> temp de last_readings para búsqueda rápida
+        std::unordered_map<std::string, float> lastmap;
+        lastmap.reserve(last_readings.size());
+        for (const auto &s : last_readings) lastmap[s.id] = s.temp;
+
+        for (size_t i = 0; i < new_readings.size(); ++i) {
+            auto it = lastmap.find(new_readings[i].id);
+            if (it != lastmap.end()) {
+                float last_temp = it->second;
+                if (std::fabs(new_readings[i].temp - last_temp) > TEMPMAXDELTA) {
+                    LOGW(TAG, "Lectura de sensor %s difiere mucho de la anterior (%.2f vs %.2f). Ignorando cambio.",
+                         new_readings[i].id.c_str(),
+                         new_readings[i].temp,
+                         last_temp);
+
+                    // Restaurar la lectura en new_readings
+                    new_readings[i].temp = last_temp;
+
+                    // Actualizar la entrada JSON correspondiente (solo esa)
+                    // Mantener el mismo formato que usamos arriba (sin "raw" en este ejemplo)
+                    char fixed_entry[256];
+                    if (cmd.type != OneWireCmdType::READ_RAW) {
+                        snprintf(fixed_entry, sizeof(fixed_entry),
+                            "{\"id\":\"%s\",\"temp\":%.2f},",
+                            new_readings[i].id.c_str(), new_readings[i].temp);
+                    } else {
+                        // Si tenés raw, podrías mantener el raw original o reconstruirlo si lo guardaste.
+                        snprintf(fixed_entry, sizeof(fixed_entry),
+                            "{\"id\":\"%s\",\"temp\":%.2f},",
+                            new_readings[i].id.c_str(), new_readings[i].temp);
+                    }
+                    entries[i] = std::string(fixed_entry);
+                }
+            }
+        }
+    }
+    // No asignamos last_readings aquí; lo haremos al final siempre
+
+    // 3) Construir tempjson UNA SOLA VEZ concatenando las entradas ya corregidas
+    std::string local_json = "{\"sensors\":[";
+    for (const auto &e : entries) local_json += e;
+    if (!local_json.empty() && local_json.back() == ',')
+        local_json.pop_back();
+    local_json += "]}";
+
+    // Asignar la global tempjson (proteger si corresponde con tu mecanismo de sincronización)
+    tempjson = local_json;
+
+    // 4) Comparar lecturas (usando readings_changed por id)
+    bool changed = readings_changed(last_readings, new_readings);
+
+    if (changed) {
+        LOGI(TAG, "Lectura cambio: %s", tempjson.c_str());
+    } else {
+        LOGN(TAG, "Lectura igual, no se loguea detalle");
+    }
+
+    // 5) Actualizar last_readings al final (siempre)
+    last_readings = new_readings;
+
+    onewire_idle = true;
+}
+
+
+void cmd_onewireOLD(const OneWireCommand &cmd)
 {
     std::vector<SensorReading> new_readings; //nueva lectura
     onewire_idle = false; //marco que estoy procesando el comando
@@ -256,8 +424,6 @@ void cmd_onewire(const OneWireCommand &cmd)
 
     tempjson += "]}";
 
-    
-
     //Control de falsas mediciones. Si la temperatura difiere mucho de la anterior, no la guardamos como última lectura
     if (!last_readings.empty() && !new_readings.empty()) {
         for (size_t i = 0; i < new_readings.size(); i++) {
@@ -287,9 +453,9 @@ void cmd_onewire(const OneWireCommand &cmd)
     } else {
         LOGN(TAG, "Lectura igual, no se loguea detalle"); //No se guarda log
     }
-    
+
     onewire_idle = true; //marco que terminé de procesar el comando
-    LOGN(TAG, "Lectura: %s", tempjson.c_str());
+    //LOGN(TAG, "Lectura: %s", tempjson.c_str());
     
 
 }
