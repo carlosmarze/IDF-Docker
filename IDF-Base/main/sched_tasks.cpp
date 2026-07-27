@@ -18,6 +18,7 @@
 #include "config_proyecto.h"
 #include "project_tasks.h"
 #include "pr_onewire.h"
+#include "pr_hacomm.h"
 //#include "pr_ds18b20.h"
 
 static const char* TAG = "SCHED_TASKS";
@@ -61,7 +62,8 @@ void task_60_temp() {
     }
 
     // Ejecutar el comando temp_scan
-    process_commands(CMD_SRC_SYSTEM, "tempscan");
+    process_commands(CMD_SRC_SYSTEM, "tempscan readnow"); //genera el json
+    map_sensors_by_id(tempjson.c_str()); //actualiza el mapa de sensores por ID y publica en HA
 
     ESP_LOGI(TAG, "Lectura periódica DS18B20: %s", tempjson.c_str());
 

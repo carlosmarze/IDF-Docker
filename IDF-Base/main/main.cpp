@@ -42,6 +42,7 @@
 #include "MisVariablesProyecto.h"
 #include "config_proyecto.h"
 #include "pr_onewire.h"
+#include "pr_hacomm.h"
 
 #define TAG "APP_MAIN"
 #define PAYLOAD_SIZE 128
@@ -274,6 +275,10 @@ void service_starter_task(void *pvParameters)
 
             //set_sched_inicio(true); //lo movemos antes de arrancar scheduler en app_task
             task_60();
+            ha_init(); //Solo lo hacemos la primera vez, para cargar el mapa de sensores desde el archivo de configuración. Luego, cada 60s, la tarea task_60_temp() se encarga de actualizarlo con los valores leídos de los sensores.
+            if(!ha_config_loaded_func()) {
+                ESP_LOGW(TAG, "HA config no cargada. No se publican temperaturas.");
+            }
             task_60_temp();
             task_3600_post();
             task_3600_updt();

@@ -24,12 +24,14 @@ static bool aplicar_config_proyecto_linea_directo(const char* linea) {
         LOGI(TAG_CONFIG, "OneWire pin: %d", g_onewire_pin);
         return true;
     }
+    
     /*
-    if (strncmp(linea, "setmtqtttls=", 12) == 0) {
-        MqttTLS = (strcmp(linea + 12, "true") == 0);
-        LOGI(TAG_CONFIG, "MqttTLS: %s", MqttTLS ? "true" : "false");
+    if (strncmp(linea, "Temp1=", 5) == 0) {
+        temp1 = (strcmp(linea + 5, "true") == 0);
+        LOGI(TAG_CONFIG, "Temp1: %s", temp1 ? "true" : "false");
         return true;
     }
+    
     if (strncmp(linea, "setesquema=", 11) == 0) {
         strncpy(esquema, linea + 11, sizeof(esquema) - 1);
         esquema[sizeof(esquema) - 1] = '\0';

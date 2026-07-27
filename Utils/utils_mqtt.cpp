@@ -259,7 +259,16 @@ void mqtt_app_start_secure(void) {
 
     LOGI("MQTT", "Certificado CA cargado correctamente");
 
-    // 2. Configurar MQTT con TLS
+    // 2. Configurar MQTT con TLS Ver si se justifica configurar last will topic y message para conexión con HA
+    /*
+            esp_mqtt_client_config_t mqtt_cfg = {
+            .broker.address.uri = "mqtt://192.168.2.50",
+            .session.last_will.topic = "esp32_living/status",
+            .session.last_will.msg = "offline",
+            .session.last_will.qos = 1,
+            .session.last_will.retain = true
+        };
+    */
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
             .address = {

@@ -1,4 +1,4 @@
-# idf_component_register(SRCS "pr_ds18b20.cpp" "pr_onewiresearch.cpp" "pr_onewire.cpp" "config_proyecto.cpp" "cmd_Led_borrar.cpp" "project_tasks.cpp" "sched_tasks.cpp" "main.cpp"
+# idf_component_register(SRCS "pr_hacomm.cpp" "pr_ds18b20.cpp" "pr_onewiresearch.cpp" "pr_onewire.cpp" "config_proyecto.cpp" "cmd_Led_borrar.cpp" "project_tasks.cpp" "sched_tasks.cpp" "main.cpp"
 #                    INCLUDE_DIRS ".")
 #target_link_libraries(${COMPONENT_TARGET} PRIVATE esp_wifi esp_event nvs_flash lwip log mqtt)
 # target_link_libraries(${COMPONENT_TARGET} PRIVATE esp_wifi esp_event nvs_flash lwip log mqtt littlefs)
@@ -8,7 +8,8 @@ idf_component_register(
         "sched_tasks.cpp"
         "project_tasks.cpp"
         "pr_onewire.cpp"
-        #"pr_onewiresearch.cpp"
+        "pr_hacomm.cpp"
+        #"onewiresearch.cpp"
         #"pr_ds18b20.cpp"
         "config_proyecto.cpp"
         INCLUDE_DIRS "."
