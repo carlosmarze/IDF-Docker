@@ -14,11 +14,11 @@
 
 #define FILE_HA_CONFIG MOUNT_POINT "/ha_config.json" // Archivo de configuración para Home Assistant
 #define TOPIC_HA_BASE "miTSESP/HA/" // Base del topic para Home Assistant El tóopico a mandar debería ser miTSESP/HA/<SensorID>/temperatura, miTSESP/HA/<SensorID>/relay, etc. según lo que se quiera enviar a Home Assistant
-#define HA_DISCOVERY_PREFIX  "homeassistant/sensor/"
+#define HA_DISCOVERY_PREFIX  "homeassistant/sensor/" //habría que ponerlos en el json
 #define HA_DEVICE_ID         "Calefac_pileta"
 #define HA_SENSOR_COUNT      4
 
-#define SENSORSCFG "/sensorscfg.txt"
+#define SENSORSCFG MOUNT_POINT "/sensorscfg.txt"
 #define MAX_SENSORS 4
 
 typedef struct {
