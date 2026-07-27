@@ -269,16 +269,17 @@ void service_starter_task(void *pvParameters)
             xTaskCreate(check_ntp_status_task, "ntp_status_check", 4096, NULL, 5, NULL);
             aux_tasks_started = true;
         }
-
+         
+        if(!is_ha_config_loaded() && mqtt_is_initialized()) {
+            ha_init(); //Si no hay mqtt, intenta la próxima vuelta para cargar el mapa de sensores desde el archivo de configuración. Luego, cada 60s, la tarea task_60_temp() se encarga de actualizarlo con los valores leídos de los sensores.
+            ESP_LOGW(TAG, "HA config no cargada. No se publicaran temperaturas.");
+        }
         if (!first_run_done) {
             ESP_LOGI(TAG2, "FIRST RUN...");
 
             //set_sched_inicio(true); //lo movemos antes de arrancar scheduler en app_task
             task_60();
-            ha_init(); //Solo lo hacemos la primera vez, para cargar el mapa de sensores desde el archivo de configuración. Luego, cada 60s, la tarea task_60_temp() se encarga de actualizarlo con los valores leídos de los sensores.
-            if(!ha_config_loaded_func()) {
-                ESP_LOGW(TAG, "HA config no cargada. No se publican temperaturas.");
-            }
+           
             task_60_temp();
             task_3600_post();
             task_3600_updt();

@@ -31,5 +31,5 @@ static temp_slot_t temp_slots[MAX_SENSORS];
 static bool ha_config_loaded = false; // Indica si la configuración de HA se ha cargado correctamente
 
 void ha_init(); //inicialización
-bool ha_config_loaded_func(); //Consulta el status de la inicialización
+bool is_ha_config_loaded(); //Consulta el status de la inicialización
 void map_sensors_by_id(const char *json); //Publica los valores de temperatura a Home Assistant según el JSON recibido del comando tempscan

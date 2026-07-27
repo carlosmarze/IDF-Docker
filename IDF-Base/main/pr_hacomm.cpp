@@ -13,8 +13,15 @@
 
 #define TAG "HA_COMM"
 
+static std::string ha_availability_topic;
+static std::string ha_payload_available;
+static std::string ha_payload_not_available;
+static std::string ha_state_topic[MAX_SENSORS];
+static std::string ha_discovery_topic[MAX_SENSORS];
+
+
 //leer el file de configuracion de HA y setear las variables globales para usar en la comunicacion con HA
-bool ha_config_loaded_func() {
+bool is_ha_config_loaded() {
     return ha_config_loaded;
 }
 
@@ -121,19 +128,25 @@ static void ha_publish_temps(void)
     }
 
     for (int i = 0; i < MAX_SENSORS; i++) {
+        bool publicar = false;
         char state_topic[64];
-        snprintf(state_topic, sizeof(state_topic), "%sTemp%d", TOPIC_HA_BASE, i+1);
-
+        
         char payload[32];
 
         if (temp_slots[i].valid) {
             snprintf(payload, sizeof(payload), "%.2f", temp_slots[i].temp);
+            publicar = true;
         } else {
             snprintf(payload, sizeof(payload), "nan");  // HA lo marca unavailable
         }
 
-        ESP_LOGI(TAG, "Pub %s -> %s", state_topic, payload);
-        publish_mqtt(state_topic, payload, 0, 0); // QoS 0, retain 0
+        if(publicar) {
+            ESP_LOGI(TAG, "Pub %s -> %s", state_topic, payload);
+            publish_mqtt(ha_state_topic[i].c_str(), payload, 0, 0); // QoS 0, retain 0
+        }
+        else {
+            ESP_LOGW(TAG, "No publicar %s -> %s (sensor inválido)", ha_state_topic[i].c_str(), payload);
+        }
         // esp_mqtt_client_publish(mqtt_client, state_topic, payload, 0, 1, 0);
         /* Retain = 0:
             Sensores de temperatura → retain=0
@@ -154,6 +167,72 @@ static void ha_publish_temps(void)
         */
     }
 }
+//lee los tópicos que están en el json e configuración
+static bool ha_discover_topics(const char *template_json)
+{
+    cJSON *root = cJSON_Parse(template_json);
+    if (!root) {
+        LOGE(TAG, "JSON inválido en ha_discover_topics");
+        return false;
+    }
+
+    // 1) Leer availability_topic
+    cJSON *avail_item = cJSON_GetObjectItem(root, "availability_topic");
+    if (avail_item && cJSON_IsString(avail_item)) {
+        ha_availability_topic = avail_item->valuestring;
+    } else {
+        LOGW(TAG, "availability_topic no encontrado");
+        ha_availability_topic.clear();
+    }
+
+    // 2) Leer payload_available
+    cJSON *pa_item = cJSON_GetObjectItem(root, "payload_available");
+    ha_payload_available = (pa_item && cJSON_IsString(pa_item))
+                            ? pa_item->valuestring
+                            : "online";
+
+    // 3) Leer payload_not_available
+    cJSON *pn_item = cJSON_GetObjectItem(root, "payload_not_available");
+    ha_payload_not_available = (pn_item && cJSON_IsString(pn_item))
+                                ? pn_item->valuestring
+                                : "offline";
+
+    // 4) Leer state_topic base
+    cJSON *state_item = cJSON_GetObjectItem(root, "state_topic");
+    std::string state_base;
+
+    if (state_item && cJSON_IsString(state_item)) {
+        state_base = state_item->valuestring;
+    } else {
+        LOGE(TAG, "state_topic no encontrado en JSON");
+        cJSON_Delete(root);
+        return false;
+    }
+
+    // 5) Construir los tópicos para Temp1..Temp4
+    for (int i = 0; i < HA_SENSOR_COUNT; i++) {
+
+        char sensor_name[16];
+        snprintf(sensor_name, sizeof(sensor_name), "Temp%d", i+1);
+
+        // state_topic final
+        char st[128];
+        snprintf(st, sizeof(st), "%s%d/%s%d",
+                 TOPIC_HA_BASE, SensorID, "Temp", i+1);
+        ha_state_topic[i] = st;
+
+        // discovery_topic final
+        char dt[128];
+        snprintf(dt, sizeof(dt),
+                 "%s%s_%s/config",
+                 HA_DISCOVERY_PREFIX, HA_DEVICE_ID, sensor_name);
+        ha_discovery_topic[i] = dt;
+    }
+
+    cJSON_Delete(root);
+    return true;
+}
+
 
 
 static bool ha_init_discovery(void)
@@ -164,13 +243,47 @@ static bool ha_init_discovery(void)
         return false;
     }
 
-    for (int i = 1; i <= HA_SENSOR_COUNT; ++i) {
-        ha_publish_temp_config_for_sensor(i, template_json);
+    // 1) Descubrir tópicos
+    if (!ha_discover_topics(template_json)) {
+        free(template_json);
+        return false;
+    }
+
+    // 2) Publicar availability inicial
+    if (!ha_availability_topic.empty()) {
+        publish_mqtt(ha_availability_topic.c_str(),
+                     ha_payload_available.c_str(),
+                     0,
+                     1);  // retain=1
+    }
+
+    // 3) Publicar discovery de Temp1..Temp4
+    for (int i = 0; i < HA_SENSOR_COUNT; i++) {
+
+        // Parsear JSON base
+        cJSON *root = cJSON_Parse(template_json);
+
+        // Modificar name
+        char sensor_name[16];
+        snprintf(sensor_name, sizeof(sensor_name), "Temp%d", i+1);
+        cJSON_ReplaceItemInObject(root, "name", cJSON_CreateString(sensor_name));
+
+        // Modificar state_topic
+        cJSON_ReplaceItemInObject(root, "state_topic",
+                                  cJSON_CreateString(ha_state_topic[i].c_str()));
+
+        // Serializar
+        char *out = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+
+        publish_mqtt(ha_discovery_topic[i].c_str(), out, 0, 1);
+        free(out);
     }
 
     free(template_json);
     return true;
 }
+
 
 
 static bool load_sensor_map(const char *path)
@@ -256,7 +369,6 @@ void map_sensors_by_id(const char *json) //Esta se invoca cuando ya hay un json 
     // Publicar en Home Assistant
     ha_publish_temps();
 }
-
 
 void ha_init()
 {
