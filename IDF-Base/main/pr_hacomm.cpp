@@ -8,22 +8,36 @@
 #include "driver/gpio.h"
 #include <vector>
 #include "esp_log.h"
-#include <unordered_map> //para reading_changed
-#include <cmath> //para reading_changed
+#include <unordered_map>
+#include <cmath>
 
 #define TAG "HA_COMM"
+
+// =========================
+// VARIABLES GLOBALES
+// =========================
 
 static std::string ha_availability_topic;
 static std::string ha_payload_available;
 static std::string ha_payload_not_available;
+
 static std::string ha_state_topic[MAX_SENSORS];
 static std::string ha_discovery_topic[MAX_SENSORS];
+static std::string ha_uniqueid[MAX_SENSORS];
 
+static temp_slot_t temp_slots[MAX_SENSORS];
+static bool ha_config_loaded = false; // Indica si la configuración de HA se ha cargado correctamente
+
+extern int SensorID;
 
 //leer el file de configuracion de HA y setear las variables globales para usar en la comunicacion con HA
 bool is_ha_config_loaded() {
     return ha_config_loaded;
 }
+
+// =========================
+// UTILIDAD: leer archivo JSON
+// =========================
 
 static char *load_ha_config_template(const char *path)
 {
@@ -37,7 +51,7 @@ static char *load_ha_config_template(const char *path)
     long len = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    auto *buf = (char*) malloc(len + 1);
+    char *buf = (char*) malloc(len + 1);
     if (!buf) {
         LOGE(TAG, "Sin memoria para config");
         fclose(f);
@@ -51,123 +65,10 @@ static char *load_ha_config_template(const char *path)
     return buf;
 }
 
+// =========================
+// 1) LEER JSON UNA SOLA VEZ
+// =========================
 
-//Publicar configuración de descubrimiento de sensores a Home Assistant
-static void ha_publish_temp_config_for_sensor(int index,
-                                              const char *template_json)
-{
-    // index: 1..4
-    char sensor_name[16];
-    snprintf(sensor_name, sizeof(sensor_name), "Temp%d", index);
-
-    // state_topic: miTSESP/HA/7001/Temp1, Temp2, etc.
-    char state_topic[64];
-    snprintf(state_topic, sizeof(state_topic), "%s%d/%s%d",
-             TOPIC_HA_BASE, SensorID, "Temp", index);
-
-    // discovery topic: homeassistant/sensor/esp32_living_Temp1/config
-    char discovery_topic[128];
-    snprintf(discovery_topic, sizeof(discovery_topic),
-             "%s%s_%s/config",
-             HA_DISCOVERY_PREFIX, HA_DEVICE_ID, sensor_name);
-
-    // Parsear plantilla
-    cJSON *root = cJSON_Parse(template_json);
-    if (!root) {
-        LOGE(TAG, "Error parseando JSON plantilla");
-        return;
-    }
-
-    // Modificar "name"
-    cJSON *name_item = cJSON_GetObjectItem(root, "name");
-    if (name_item && cJSON_IsString(name_item)) {
-        cJSON_SetValuestring(name_item, sensor_name);
-    } else {
-        cJSON_ReplaceItemInObject(root, "name", cJSON_CreateString(sensor_name));
-    }
-
-    // Modificar "state_topic"
-    cJSON *state_item = cJSON_GetObjectItem(root, "state_topic");
-    if (state_item && cJSON_IsString(state_item)) {
-        cJSON_SetValuestring(state_item, state_topic);
-    } else {
-        cJSON_ReplaceItemInObject(root, "state_topic", cJSON_CreateString(state_topic));
-    }
-
-    // Serializar JSON final
-    char *out = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-
-    if (!out) {
-        LOGE(TAG, "Error serializando JSON");
-        return;
-    }
-
-    LOGI(TAG, "Publicando discovery %s -> %s", discovery_topic, out);
-    publish_mqtt(discovery_topic, out, 0, 1); // QoS 0, retain 1
-    //esp_mqtt_client_publish(mqtt_client, discovery_topic, out, 0, 1, 1);
-    /*  Retain = 1: 
-        Home Assistant no guarda ese mensaje internamente, sino que lo vuelve a leer cada vez que reinicia o cuando se reconecta al broker.
-        Si el mensaje no está retenido (retain=0):
-        Si HA se reinicia → pierde la entidad
-        Si HA se reconecta al broker → pierde la entidad
-        Si tu ESP32 no publica el config en ese momento → no aparece el sensor
-    */
-    free(out);
-    ha_config_loaded = true;
-
-}
-
-
-//Publicar valores de temperatura a Home Assistant
-static void ha_publish_temps(void)
-{
-    if(!ha_config_loaded) {
-        ESP_LOGW(TAG, "HA config no cargada. No se publican temperaturas.");
-        return;
-    }
-
-    for (int i = 0; i < MAX_SENSORS; i++) {
-        bool publicar = false;
-        char state_topic[64];
-        
-        char payload[32];
-
-        if (temp_slots[i].valid) {
-            snprintf(payload, sizeof(payload), "%.2f", temp_slots[i].temp);
-            publicar = true;
-        } else {
-            snprintf(payload, sizeof(payload), "nan");  // HA lo marca unavailable
-        }
-
-        if(publicar) {
-            ESP_LOGI(TAG, "Pub %s -> %s", state_topic, payload);
-            publish_mqtt(ha_state_topic[i].c_str(), payload, 0, 0); // QoS 0, retain 0
-        }
-        else {
-            ESP_LOGW(TAG, "No publicar %s -> %s (sensor inválido)", ha_state_topic[i].c_str(), payload);
-        }
-        // esp_mqtt_client_publish(mqtt_client, state_topic, payload, 0, 1, 0);
-        /* Retain = 0:
-            Sensores de temperatura → retain=0
-            Porque la temperatura cambia constantemente.
-            Si usás retain=1, HA podría mostrar un valor viejo si el ESP32 se desconecta.
-
-            ✔️ Sensores binarios (interruptores) → retain=1
-            Porque si el ESP32 se reinicia, HA debe saber el último estado.
-
-            ✔️ Switches / relés → retain=1 en state_topic
-            Para que HA recuerde si estaba ON u OFF.
-
-            ✔️ Energía acumulada (kWh) → retain=1
-            Porque es un valor que debe persistir.
-
-            ✔️ Potencia instantánea (W) → retain=0
-            Porque cambia todo el tiempo.
-        */
-    }
-}
-//lee los tópicos que están en el json e configuración
 static bool ha_discover_topics(const char *template_json)
 {
     cJSON *root = cJSON_Parse(template_json);
@@ -176,64 +77,55 @@ static bool ha_discover_topics(const char *template_json)
         return false;
     }
 
-    // 1) Leer availability_topic
+    // availability_topic
     cJSON *avail_item = cJSON_GetObjectItem(root, "availability_topic");
-    if (avail_item && cJSON_IsString(avail_item)) {
+    if (avail_item && cJSON_IsString(avail_item))
         ha_availability_topic = avail_item->valuestring;
-    } else {
-        LOGW(TAG, "availability_topic no encontrado");
+    else
         ha_availability_topic.clear();
-    }
 
-    // 2) Leer payload_available
+    // payload_available
     cJSON *pa_item = cJSON_GetObjectItem(root, "payload_available");
     ha_payload_available = (pa_item && cJSON_IsString(pa_item))
                             ? pa_item->valuestring
                             : "online";
 
-    // 3) Leer payload_not_available
+    // payload_not_available
     cJSON *pn_item = cJSON_GetObjectItem(root, "payload_not_available");
     ha_payload_not_available = (pn_item && cJSON_IsString(pn_item))
                                 ? pn_item->valuestring
                                 : "offline";
 
-    // 4) Leer state_topic base
-    cJSON *state_item = cJSON_GetObjectItem(root, "state_topic");
-    std::string state_base;
-
-    if (state_item && cJSON_IsString(state_item)) {
-        state_base = state_item->valuestring;
-    } else {
-        LOGE(TAG, "state_topic no encontrado en JSON");
-        cJSON_Delete(root);
-        return false;
-    }
-
-    // 5) Construir los tópicos para Temp1..Temp4
-    for (int i = 0; i < HA_SENSOR_COUNT; i++) {
+    // generar tópicos por sensor
+    for (int i = 0; i < MAX_SENSORS; i++) {
 
         char sensor_name[16];
         snprintf(sensor_name, sizeof(sensor_name), "Temp%d", i+1);
 
-        // state_topic final
         char st[128];
         snprintf(st, sizeof(st), "%s%d/%s%d",
                  TOPIC_HA_BASE, SensorID, "Temp", i+1);
         ha_state_topic[i] = st;
 
-        // discovery_topic final
         char dt[128];
         snprintf(dt, sizeof(dt),
                  "%s%s_%s/config",
                  HA_DISCOVERY_PREFIX, HA_DEVICE_ID, sensor_name);
         ha_discovery_topic[i] = dt;
+
+        char uid[128];
+        snprintf(uid, sizeof(uid),
+                 "%s_%d_temp%d", HA_DEVICE_ID, SensorID, i+1);
+        ha_uniqueid[i] = uid;
     }
 
     cJSON_Delete(root);
     return true;
 }
 
-
+// =========================
+// 2) PUBLICAR DISCOVERY UNA VEZ
+// =========================
 
 static bool ha_init_discovery(void)
 {
@@ -243,36 +135,30 @@ static bool ha_init_discovery(void)
         return false;
     }
 
-    // 1) Descubrir tópicos
     if (!ha_discover_topics(template_json)) {
         free(template_json);
         return false;
     }
 
-    // 2) Publicar availability inicial
+    // availability inicial
     if (!ha_availability_topic.empty()) {
         publish_mqtt(ha_availability_topic.c_str(),
                      ha_payload_available.c_str(),
-                     0,
-                     1);  // retain=1
+                     0, 1);
     }
 
-    // 3) Publicar discovery de Temp1..Temp4
-    for (int i = 0; i < HA_SENSOR_COUNT; i++) {
+    // publicar discovery de TempX
+    for (int i = 0; i < MAX_SENSORS; i++) {
 
-        // Parsear JSON base
         cJSON *root = cJSON_Parse(template_json);
 
-        // Modificar name
         char sensor_name[16];
         snprintf(sensor_name, sizeof(sensor_name), "Temp%d", i+1);
+
         cJSON_ReplaceItemInObject(root, "name", cJSON_CreateString(sensor_name));
+        cJSON_ReplaceItemInObject(root, "state_topic", cJSON_CreateString(ha_state_topic[i].c_str()));
+        cJSON_ReplaceItemInObject(root, "unique_id", cJSON_CreateString(ha_uniqueid[i].c_str()));
 
-        // Modificar state_topic
-        cJSON_ReplaceItemInObject(root, "state_topic",
-                                  cJSON_CreateString(ha_state_topic[i].c_str()));
-
-        // Serializar
         char *out = cJSON_PrintUnformatted(root);
         cJSON_Delete(root);
 
@@ -281,10 +167,46 @@ static bool ha_init_discovery(void)
     }
 
     free(template_json);
+    ha_config_loaded = true;
     return true;
 }
 
+// =========================
+// 3) PUBLICAR TEMPERATURAS
+// =========================
 
+static void ha_publish_temps(void)
+{
+    if (!ha_config_loaded) {
+        ESP_LOGW(TAG, "HA config no cargada. No se publican temperaturas.");
+        return;
+    }
+
+    for (int i = 0; i < MAX_SENSORS; i++) {
+        bool publicar = false;
+        char payload[32];
+
+        if (temp_slots[i].valid) {
+            snprintf(payload, sizeof(payload), "%.2f", temp_slots[i].temp);
+            publicar = true;
+        }
+        else {
+            snprintf(payload, sizeof(payload), "nan");
+        }
+
+       if(publicar) {
+            ESP_LOGI(TAG, "Pub %s -> %s", ha_state_topic[i].c_str(), payload);
+            publish_mqtt(ha_state_topic[i].c_str(), payload, 0, 0); // QoS 0, retain 0
+        }
+        else {
+            ESP_LOGW(TAG, "No publicar %s -> %s (sensor inválido)", ha_state_topic[i].c_str(), payload);
+        }
+    }
+}
+
+// =========================
+// 4) MAPEAR SENSORES POR ID
+// =========================
 
 static bool load_sensor_map(const char *path)
 {
@@ -308,7 +230,7 @@ static bool load_sensor_map(const char *path)
 
             if (idx >= 0) {
                 strncpy(temp_slots[idx].id, value, sizeof(temp_slots[idx].id)-1);
-                temp_slots[idx].valid = false;   // se marcará luego
+                temp_slots[idx].valid = false;
                 ESP_LOGI(TAG, "Temp%d → ID=%s", idx+1, temp_slots[idx].id);
             }
         }
@@ -318,12 +240,14 @@ static bool load_sensor_map(const char *path)
     return true;
 }
 
-void map_sensors_by_id(const char *json) //Esta se invoca cuando ya hay un json generado por el comando tempscan, que contiene los sensores leídos y sus temperaturas. Se actualiza el mapa de sensores por ID y se publica en HA.
+// =========================
+// 5) MAPEAR JSON DE TEMPERATURAS
+// =========================
+
+void map_sensors_by_id(const char *json)
 {
-    // Inicializar como inválidos
-    if(!ha_config_loaded) {
-        return; //si no se cargó la config de HA, no hacemos nada
-    }
+    if (!ha_config_loaded)
+        return;
 
     for (int i = 0; i < MAX_SENSORS; i++) {
         temp_slots[i].temp = -999.0f;
@@ -355,7 +279,6 @@ void map_sensors_by_id(const char *json) //Esta se invoca cuando ya hay un json 
         if (!id || !cJSON_IsString(id) || !temp || !cJSON_IsNumber(temp))
             continue;
 
-        // Buscar qué TempX corresponde a este ID
         for (int t = 0; t < MAX_SENSORS; t++) {
             if (strcmp(id->valuestring, temp_slots[t].id) == 0) {
                 temp_slots[t].temp = temp->valuedouble;
@@ -366,19 +289,19 @@ void map_sensors_by_id(const char *json) //Esta se invoca cuando ya hay un json 
     }
 
     cJSON_Delete(root);
-    // Publicar en Home Assistant
+
     ha_publish_temps();
 }
 
+// =========================
+// 6) INICIALIZACIÓN GENERAL
+// =========================
+
 void ha_init()
 {
-    // Cargar mapa de sensores desde archivo
-    if(ha_init_discovery() && load_sensor_map(SENSORSCFG)) {
+    if (ha_init_discovery() && load_sensor_map(SENSORSCFG)) {
         LOGI(TAG, "HA config cargada y discovery publicado.");
-        ha_config_loaded = true;
     } else {
         LOGE(TAG, "Error cargando HA config o publicando discovery.");
     }
-    // Publicar configuración de descubrimiento en Home Assistant
-    
 }

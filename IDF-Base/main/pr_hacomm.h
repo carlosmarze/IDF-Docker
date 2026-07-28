@@ -27,8 +27,7 @@ typedef struct {
     bool valid;      // si se encontró en el JSON
 } temp_slot_t;
 
-static temp_slot_t temp_slots[MAX_SENSORS];
-static bool ha_config_loaded = false; // Indica si la configuración de HA se ha cargado correctamente
+
 
 void ha_init(); //inicialización
 bool is_ha_config_loaded(); //Consulta el status de la inicialización
