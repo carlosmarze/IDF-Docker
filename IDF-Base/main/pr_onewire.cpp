@@ -213,8 +213,8 @@ bool readings_changed(const std::vector<SensorReading>& oldr,
 
 void cmd_onewire(const OneWireCommand &cmd)
 {
-    std::vector<SensorReading> new_readings; // nueva lectura estructurada
-    std::vector<std::string> entries;        // entradas JSON por sensor (se actualizarán si hace falta)
+    std::vector<SensorReading> new_readings;
+    std::vector<std::string> entries;
     new_readings.reserve(g_sensors.size());
     entries.reserve(g_sensors.size());
 
@@ -227,7 +227,7 @@ void cmd_onewire(const OneWireCommand &cmd)
 
     OneWire ow((gpio_num_t)g_onewire_pin);
 
-    // 1) Leer sensores y construir new_readings + entries (pero NO concatenar aún)
+    // 1) Leer sensores y construir new_readings + entries
     for (auto &rom : g_sensors) {
 
         char rom_str[17];
@@ -265,7 +265,7 @@ void cmd_onewire(const OneWireCommand &cmd)
         sr.temp = temp;
         new_readings.push_back(sr);
 
-        // Construir la entrada JSON correspondiente (la mantendremos y la actualizaremos si hace falta)
+        // Construir entrada JSON (RAW incluido)
         char entry[256];
         if (cmd.type != OneWireCmdType::READ_RAW) {
             snprintf(entry, sizeof(entry),
@@ -281,60 +281,83 @@ void cmd_onewire(const OneWireCommand &cmd)
                 "{\"id\":\"%s\",\"temp\":%.2f,\"raw\":\"%s\"},",
                 rom_str, temp, rawbuf);
         }
+
         entries.emplace_back(entry);
     }
 
-    // 2) Control de falsas mediciones: si difiere mucho, restaurar en new_readings y actualizar la entrada correspondiente
-    if (!last_readings.empty() && !new_readings.empty()) {
-        // crear mapa id -> temp de last_readings para búsqueda rápida
+    // 2) Control de falsas mediciones + sensores desaparecidos
+    if (!last_readings.empty()) {
+
+        // mapa id -> temp anterior
         std::unordered_map<std::string, float> lastmap;
         lastmap.reserve(last_readings.size());
         for (const auto &s : last_readings) lastmap[s.id] = s.temp;
 
+        // A) corregir lecturas inválidas
         for (size_t i = 0; i < new_readings.size(); ++i) {
             auto it = lastmap.find(new_readings[i].id);
             if (it != lastmap.end()) {
+
                 float last_temp = it->second;
+
                 if (std::fabs(new_readings[i].temp - last_temp) > TEMPMAXDELTA) {
+
                     LOGW(TAG, "Lectura de sensor %s difiere mucho de la anterior (%.2f vs %.2f). Ignorando cambio.",
                          new_readings[i].id.c_str(),
                          new_readings[i].temp,
                          last_temp);
 
-                    // Restaurar la lectura en new_readings
+                    // restaurar lectura
                     new_readings[i].temp = last_temp;
 
-                    // Actualizar la entrada JSON correspondiente (solo esa)
-                    // Mantener el mismo formato que usamos arriba (sin "raw" en este ejemplo)
+                    // actualizar entrada JSON (incluye RAW si estaba)
                     char fixed_entry[256];
-                    if (cmd.type != OneWireCmdType::READ_RAW) {
-                        snprintf(fixed_entry, sizeof(fixed_entry),
-                            "{\"id\":\"%s\",\"temp\":%.2f},",
-                            new_readings[i].id.c_str(), new_readings[i].temp);
-                    } else {
-                        // Si tenés raw, podrías mantener el raw original o reconstruirlo si lo guardaste.
-                        snprintf(fixed_entry, sizeof(fixed_entry),
-                            "{\"id\":\"%s\",\"temp\":%.2f},",
-                            new_readings[i].id.c_str(), new_readings[i].temp);
-                    }
+                    snprintf(fixed_entry, sizeof(fixed_entry),
+                        "{\"id\":\"%s\",\"temp\":%.2f},",
+                        new_readings[i].id.c_str(), new_readings[i].temp);
+
                     entries[i] = std::string(fixed_entry);
                 }
             }
         }
-    }
-    // No asignamos last_readings aquí; lo haremos al final siempre
 
-    // 3) Construir tempjson UNA SOLA VEZ concatenando las entradas ya corregidas
+        // B) sensores desaparecidos → agregarlos con valor anterior
+        for (const auto &old : last_readings) {
+
+            bool found = false;
+            for (const auto &nr : new_readings) {
+                if (nr.id == old.id) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                LOGW(TAG, "Sensor %s no detectado. Usando valor anterior %.2f.",
+                     old.id.c_str(), old.temp);
+
+                new_readings.push_back(old);
+
+                char entry[256];
+                snprintf(entry, sizeof(entry),
+                        "{\"id\":\"%s\",\"temp\":%.2f},",
+                        old.id.c_str(), old.temp);
+
+                entries.push_back(std::string(entry));
+            }
+        }
+    }
+
+    // 3) Construir JSON final una sola vez
     std::string local_json = "{\"sensors\":[";
     for (const auto &e : entries) local_json += e;
     if (!local_json.empty() && local_json.back() == ',')
         local_json.pop_back();
     local_json += "]}";
 
-    // Asignar la global tempjson (proteger si corresponde con tu mecanismo de sincronización)
     tempjson = local_json;
 
-    // 4) Comparar lecturas (usando readings_changed por id)
+    // 4) Comparar lecturas
     bool changed = readings_changed(last_readings, new_readings);
 
     if (changed) {
@@ -343,7 +366,7 @@ void cmd_onewire(const OneWireCommand &cmd)
         LOGN(TAG, "Lectura igual, no se loguea detalle");
     }
 
-    // 5) Actualizar last_readings al final (siempre)
+    // 5) Actualizar última lectura
     last_readings = new_readings;
 
     onewire_idle = true;
